@@ -1,0 +1,16 @@
+node_modules/
+dist/
+dist-ssr/
+*.local
+.env
+.env.*
+.DS_Store
+*.log
+.vite/
+# never commit sample songs / stems
+sample-stems/
+*.zip
+
+# tauri
+src-tauri/target/
+src-tauri/gen/
