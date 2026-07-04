@@ -83,15 +83,16 @@ the planet.
 - [x] Project scaffold + engine core
 - [x] **Level 0**: stem-zip ingest, in-browser stem analysis, on-device Whisper,
       tap-to-sync, the 3 interactive modes
-- [x] **Free photo backdrops** — search Openverse (no key) / Pexels / Unsplash
-      for the song's key words, wired into the show with attribution
+- [x] **Free backdrops** — search **6 sources** for the song's key words, wired
+      into the show with attribution. No-key: Openverse (CC), Wikimedia Commons,
+      Art Institute of Chicago (fine art). Free-key: Pexels, Unsplash, Pixabay
 - [x] Export to shareable **video** (record the show + audio → `.webm`)
 - [x] **Level 1**: OpenRouter AI direction (emotions/sections/palette/imagery
       prompts) that also sharpens the photo search; optional AI image-gen with a
       cost warning + per-run cap
 - [x] **Level 2**: 100% local — Ollama (direction) + ComfyUI (art), free &
       private, with setup docs (see [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md))
-- [ ] More photo sources (Pixabay, Wikimedia), effect/template presets, shareable links
+- [ ] Effect/template presets, shareable links, MP4 export (ffmpeg.wasm)
 
 ## Credits
 
