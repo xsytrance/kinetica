@@ -13,7 +13,7 @@ import { activeSection, sectionMotion, type PlanetSection, type SectionMotion } 
 import { deriveTheme } from "@/lib/theme";
 import { glyphFor, glyphForEmotion, type Glyph } from "@/lib/shapes";
 import { beatClock } from "@/lib/beatClock";
-import { KineticParticles, particleModeFor, type ParticleHandle } from "./KineticParticles";
+import { KineticParticles, particleModeFor, type ParticleHandle, type ParticleMode } from "./KineticParticles";
 import { loadStems, envAt, activeCut, activeRiser, OnsetTracker, type StemData } from "@/lib/stemSense";
 import type { Track } from "@/lib/types";
 
@@ -121,7 +121,7 @@ function gradeTo(section: PlanetSection) {
   root.setProperty("--theme-bg", th.bg);
 }
 
-export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pass = 3, mode = "phrase" }: {
+export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pass = 3, mode = "phrase", forceParticle }: {
   track: Track;
   /** Tailwind bottom-offset for the arc timeline (differs when the player bar is covered). */
   timelineBottomClass?: string;
@@ -130,6 +130,8 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
   pass?: number;
   /** Viewing style (pass 3+): dynamic stagecraft, clean focus, or phrase mode. */
   mode?: StageMode;
+  /** Preset override for the weather layer; undefined = auto from the song. */
+  forceParticle?: ParticleMode;
 }) {
   const { getCurrentTime, setMuffle } = useMusicPlayer();
   const rawWords = track.lyricsSynced!.words!;
@@ -236,12 +238,13 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
   // The weather layer — song-matched particles between backdrop and words.
   const particles = useRef<ParticleHandle>(null);
   const particleMode = useMemo(() => {
+    if (forceParticle) return forceParticle;
     const a = track.planet?.analysis;
     return particleModeFor([
       a?.overallMood, ...(a?.themes ?? []), ...(a?.keywords?.map((k) => k.word) ?? []),
       track.mood, track.genre, track.title,
     ].filter(Boolean).join(" "));
-  }, [track]);
+  }, [track, forceParticle]);
   const palette = useMemo(() => {
     const pal = track.planet?.analysis?.palette;
     return Array.isArray(pal) && pal.length ? pal : [track.color];

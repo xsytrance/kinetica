@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useMusicPlayer } from "@/audio/player";
 import { KineticStage } from "@/engine/KineticStage";
 import { useRecorder } from "@/export/useRecorder";
+import { PRESETS, getPreset } from "@/lib/presets";
+import { deriveTheme } from "@/lib/theme";
 import type { Track } from "@/lib/types";
 import type { Credit } from "@/images/populate";
 
@@ -23,6 +25,24 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
   const rec = useRecorder(recIo);
   const safeTitle = (track.title || "kinetica").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
 
+  // ── Presets: one-click looks that re-grade the whole show ──
+  const [presetId, setPresetId] = useState("auto");
+  const preset = getPreset(presetId);
+  const autoPalette = useMemo(() => {
+    const p = track.planet?.analysis?.palette;
+    if (Array.isArray(p) && p.length >= 3) return [p[0], p[1], p[2], p[3] ?? "#05030b"] as const;
+    const t = deriveTheme(track.color || "#ff2bd6");
+    return [t.primary, t.secondary, t.accent, t.bg] as const;
+  }, [track]);
+  useEffect(() => {
+    const r = document.documentElement.style;
+    const [p, s, a, bg] = preset.palette ?? autoPalette;
+    r.setProperty("--theme-primary", p); r.setProperty("--theme-secondary", s);
+    r.setProperty("--theme-accent", a); r.setProperty("--theme-bg", bg);
+    if (preset.font) r.setProperty("--font-display", preset.font); else r.removeProperty("--font-display");
+    return () => { r.removeProperty("--font-display"); };
+  }, [preset, autoPalette]);
+
   useEffect(() => {
     player.load(track);
     const t = setTimeout(() => { player.play(); setPlaying(true); }, 300);
@@ -35,9 +55,18 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
     <div className="fixed inset-0 flex h-[100dvh] w-full flex-col overflow-hidden">
       {/* controls */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between p-4">
-        <button onClick={onExit} className="pointer-events-auto rounded-full border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white/60 hover:text-white">
-          ← New song
-        </button>
+        <div className="pointer-events-auto flex items-center gap-2">
+          <button onClick={onExit} className="rounded-full border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white/60 hover:text-white">
+            ← New song
+          </button>
+          <select
+            value={presetId} onChange={(e) => setPresetId(e.target.value)}
+            title="Visual style" aria-label="Visual style"
+            className="rounded-full border border-white/15 bg-black/50 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-white/70 outline-none"
+          >
+            {PRESETS.map((p) => <option key={p.id} value={p.id} className="bg-black text-white">✦ {p.label}</option>)}
+          </select>
+        </div>
         <div className="pointer-events-auto flex gap-1.5">
           {MODES.map((m) => (
             <button key={m.id} onClick={() => setMode(m.id)} className={`rounded-full px-4 py-2 font-mono text-[10px] uppercase tracking-wider transition ${mode === m.id ? "bg-[var(--theme-primary)] text-black" : "border border-white/15 text-white/60 hover:text-white"}`}>
@@ -68,7 +97,9 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
         </div>
       )}
 
-      <KineticStage track={track} pass={3} mode={mode} />
+      <div className={`absolute inset-0 ${preset.stageClass ?? ""}`}>
+        <KineticStage track={track} pass={3} mode={mode} forceParticle={preset.particle} />
+      </div>
 
       {/* Photo attribution — free-photo APIs require crediting the creators. */}
       {attribution && (
