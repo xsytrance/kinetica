@@ -60,6 +60,30 @@ Build a static site anyone can host (GitHub Pages, Vercel, Netlify — no server
 npm run build    # outputs dist/
 ```
 
+## Run it locally (for AI features)
+
+**Your API key should never be pasted into a website you don't control** — so the
+hosted site never asks for one. Level 0 (offline lyrics), free photo backdrops,
+and video export all work on the hosted site with **no key and no sign-in**.
+
+To use **Level 1 (OpenRouter, your key)**, run Kinetica **on your own machine**.
+Then the key you enter stays on your computer and is sent only to OpenRouter —
+the same trust model as any desktop app, and the code is right here to read.
+
+```bash
+git clone https://github.com/xsytrance/kinetica
+cd kinetica
+npm install
+npm run dev        # open the printed http://localhost URL — key entry is unlocked there
+```
+
+**Level 2 (100% local, no key at all)** — Ollama + ComfyUI on your machine —
+works even from the hosted site (it only talks to `localhost`). Setup:
+[docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md).
+
+> A one-click **desktop app** (no Node required) is on the way — same thing,
+> double-click to run, your keys never leave your computer.
+
 ## How it works
 
 ```

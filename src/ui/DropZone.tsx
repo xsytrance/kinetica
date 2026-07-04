@@ -38,8 +38,10 @@ export function DropZone({ onFile, error }: { onFile: (f: File) => void; error: 
       {error && <p className="max-w-xl text-center text-sm text-red-300">{error}</p>}
 
       <p className="max-w-xl text-center font-mono text-[11px] leading-relaxed text-white/35">
-        Level 0 is free and offline. Add an OpenRouter key (Level 1) or run local
-        Ollama + ComfyUI (Level 2) for AI direction &amp; generated art.
+        Free, and your song never leaves your device — no sign-in, no API key here.
+        Want AI direction &amp; generated art? Run Kinetica{" "}
+        <a href="https://github.com/xsytrance/kinetica#run-it-locally-for-ai-features" target="_blank" rel="noreferrer" className="text-white/60 underline hover:text-[var(--theme-primary)]">on your own machine</a>{" "}
+        so your keys stay yours.
       </p>
 
       <a href="https://x1c7.com" target="_blank" rel="noreferrer" className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/40 transition hover:text-[var(--theme-primary)]">

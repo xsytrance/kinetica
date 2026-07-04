@@ -7,6 +7,7 @@ import { analyzeSong } from "@/ai/openrouter";
 import { analyzeSongOllama } from "@/ai/local";
 import { applyAnalysis, generateArtOpenRouter } from "@/ai/enrich";
 import { generateArtComfy } from "@/comfy/comfyui";
+import { isLocal, RUN_LOCALLY_URL } from "@/lib/env";
 
 type Engine = "off" | "openrouter" | "local";
 const ls = (k: string, d = "") => localStorage.getItem(k) ?? d;
@@ -117,10 +118,16 @@ export function ArtStep({ track, duration, onDone }: {
       <div className="rounded-xl border border-white/10 p-4">
         <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--theme-secondary)]">✦ AI engine</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          {([["off", "Off (free)"], ["openrouter", "OpenRouter · key"], ["local", "Local · Ollama+ComfyUI"]] as [Engine, string][]).map(([id, label]) => (
+          {(([["off", "Off (free)"], ...(isLocal ? [["openrouter", "OpenRouter · key"]] : []), ["local", "Local · Ollama+ComfyUI"]]) as [Engine, string][]).map(([id, label]) => (
             <button key={id} onClick={() => { setEngine(id); setUseAiArt(false); }} className={`rounded-full px-4 py-1.5 font-mono text-[11px] transition ${engine === id ? "bg-[var(--theme-secondary)] text-black" : "border border-white/20 text-white/60"}`}>{label}</button>
           ))}
         </div>
+        {!isLocal && (
+          <p className="mt-2 font-mono text-[10px] leading-relaxed text-white/45">
+            🔒 Cloud AI with your own API key is only offered when you run Kinetica <b>on your own machine</b> — so your key never touches a website you don't control.{" "}
+            <a href={RUN_LOCALLY_URL} target="_blank" rel="noreferrer" className="text-[var(--theme-secondary)] underline">How to run it locally ↗</a>. (Local Ollama/ComfyUI needs no key and works here already.)
+          </p>
+        )}
 
         {engine === "openrouter" && (
           <div className="mt-3 space-y-2">
