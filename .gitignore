@@ -10,3 +10,7 @@ dist-ssr/
 # never commit sample songs / stems
 sample-stems/
 *.zip
+
+# tauri
+src-tauri/target/
+src-tauri/gen/
