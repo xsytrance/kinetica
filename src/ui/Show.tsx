@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMusicPlayer } from "@/audio/player";
 import { KineticStage } from "@/engine/KineticStage";
+import { useRecorder } from "@/export/useRecorder";
 import type { Track } from "@/lib/types";
 import type { Credit } from "@/images/populate";
 
@@ -18,6 +19,9 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
   const [mode, setMode] = useState<Mode>("phrase");
   const [playing, setPlaying] = useState(true);
   const [showCredits, setShowCredits] = useState(false);
+  const recIo = useMemo(() => ({ getAudioStream: player.getAudioStream, seek: player.seek, play: player.play, duration: player.duration }), [player]);
+  const rec = useRecorder(recIo);
+  const safeTitle = (track.title || "kinetica").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
 
   useEffect(() => {
     player.load(track);
@@ -43,8 +47,26 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
           <button onClick={toggle} className="pointer-events-auto ml-1 rounded-full border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white/70">
             {playing ? "❚❚" : "▶"}
           </button>
+          {rec.recording ? (
+            <button onClick={rec.stop} className="pointer-events-auto rounded-full bg-red-500 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white">■ Stop</button>
+          ) : (
+            <button onClick={rec.start} className="pointer-events-auto rounded-full border border-red-400/60 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-red-300 hover:bg-red-500/20">● Record</button>
+          )}
         </div>
       </div>
+
+      {/* Export banner */}
+      {(rec.recording || rec.downloadUrl || rec.error) && (
+        <div className="pointer-events-none absolute inset-x-0 top-16 z-30 flex justify-center">
+          <div className="pointer-events-auto rounded-full bg-black/70 px-4 py-2 font-mono text-[11px] text-white/80 backdrop-blur">
+            {rec.recording && <span className="text-red-300">● Recording — plays once from the top; hit Stop or “Stop sharing” when it ends.</span>}
+            {!rec.recording && rec.downloadUrl && (
+              <a href={rec.downloadUrl} download={`${safeTitle}-kinetica.webm`} className="text-[var(--theme-primary)] underline">⬇ Download your lyric video (.webm)</a>
+            )}
+            {rec.error && <span className="text-red-300">Recording failed: {rec.error}</span>}
+          </div>
+        </div>
+      )}
 
       <KineticStage track={track} pass={3} mode={mode} />
 

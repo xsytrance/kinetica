@@ -41,6 +41,10 @@ export function DropZone({ onFile, error }: { onFile: (f: File) => void; error: 
         Level 0 is free and offline. Add an OpenRouter key (Level 1) or run local
         Ollama + ComfyUI (Level 2) for AI direction &amp; generated art.
       </p>
+
+      <a href="https://x1c7.com" target="_blank" rel="noreferrer" className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/40 transition hover:text-[var(--theme-primary)]">
+        made by xsytrance · x1c7.com ↗
+      </a>
     </div>
   );
 }
