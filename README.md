@@ -81,12 +81,17 @@ the planet.
 ## Roadmap
 
 - [x] Project scaffold + engine core
-- [ ] **Level 0**: stem-zip ingest, in-browser stem analysis, on-device Whisper,
+- [x] **Level 0**: stem-zip ingest, in-browser stem analysis, on-device Whisper,
       tap-to-sync, the 3 interactive modes
-- [ ] Export to shareable **video** (record the canvas + audio)
-- [ ] **Level 1**: OpenRouter analysis + art with cost guardrails
-- [ ] **Level 2**: local Ollama + ComfyUI, with setup docs
-- [ ] Effect/template presets, shareable links
+- [x] **Free photo backdrops** — search Openverse (no key) / Pexels / Unsplash
+      for the song's key words, wired into the show with attribution
+- [x] Export to shareable **video** (record the show + audio → `.webm`)
+- [x] **Level 1**: OpenRouter AI direction (emotions/sections/palette/imagery
+      prompts) that also sharpens the photo search; optional AI image-gen with a
+      cost warning + per-run cap
+- [ ] **Level 2**: local Ollama + ComfyUI, with setup docs (see
+      [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md))
+- [ ] More photo sources (Pixabay, Wikimedia), effect/template presets, shareable links
 
 ## Credits
 

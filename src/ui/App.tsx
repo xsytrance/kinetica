@@ -69,7 +69,7 @@ export function App() {
           onReady={onLyricsReady}
         />
       )}
-      {step === "art" && track && <ArtStep track={track} onDone={onArtDone} />}
+      {step === "art" && track && <ArtStep track={track} duration={prepared.current?.stemData.duration ?? 0} onDone={onArtDone} />}
       {step === "show" && track && <Show track={track} credits={credits} attribution={attribution} onExit={() => setStep("drop")} />}
     </div>
   );
