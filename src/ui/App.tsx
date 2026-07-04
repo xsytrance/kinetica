@@ -5,12 +5,14 @@ import { analyzeStems } from "@/audio/stemAnalysis";
 import type { StemData } from "@/lib/stemSense";
 import { DropZone } from "./DropZone";
 import { LyricsStep } from "./LyricsStep";
+import { ArtStep } from "./ArtStep";
 import { Show } from "./Show";
 import { buildTrack } from "@/lib/buildTrack";
 import type { Track } from "@/lib/types";
 import type { SyncedWord } from "@/lib/lyrics";
+import type { Credit } from "@/images/populate";
 
-type Step = "drop" | "processing" | "lyrics" | "show";
+type Step = "drop" | "processing" | "lyrics" | "art" | "show";
 interface Prepared { stems: LoadedStems; stemData: StemData; masterUrl: string; title: string }
 
 export function App() {
@@ -19,6 +21,8 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const prepared = useRef<Prepared | null>(null);
   const [track, setTrack] = useState<Track | null>(null);
+  const [credits, setCredits] = useState<Credit[]>([]);
+  const [attribution, setAttribution] = useState("");
 
   const onFile = useCallback(async (file: File) => {
     setError(null); setStep("processing");
@@ -41,7 +45,11 @@ export function App() {
     const t = buildTrack({ title, lyricsLrc, words, stemData: p.stemData });
     t.audioUrl = p.masterUrl;
     setTrack(t);
-    setStep("show");
+    setStep("art");
+  }, []);
+
+  const onArtDone = useCallback((t: Track, cr: Credit[], attr: string) => {
+    setTrack(t); setCredits(cr); setAttribution(attr); setStep("show");
   }, []);
 
   return (
@@ -61,7 +69,8 @@ export function App() {
           onReady={onLyricsReady}
         />
       )}
-      {step === "show" && track && <Show track={track} onExit={() => setStep("drop")} />}
+      {step === "art" && track && <ArtStep track={track} onDone={onArtDone} />}
+      {step === "show" && track && <Show track={track} credits={credits} attribution={attribution} onExit={() => setStep("drop")} />}
     </div>
   );
 }

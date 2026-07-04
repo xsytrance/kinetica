@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useMusicPlayer } from "@/audio/player";
 import { KineticStage } from "@/engine/KineticStage";
 import type { Track } from "@/lib/types";
+import type { Credit } from "@/images/populate";
 
 type Mode = "phrase" | "focus" | "dynamic";
 const MODES: { id: Mode; label: string }[] = [
@@ -10,10 +11,13 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "dynamic", label: "Dynamic" },
 ];
 
-export function Show({ track, onExit }: { track: Track; onExit: () => void }) {
+export function Show({ track, onExit, credits = [], attribution = "" }: {
+  track: Track; onExit: () => void; credits?: Credit[]; attribution?: string;
+}) {
   const player = useMusicPlayer();
   const [mode, setMode] = useState<Mode>("phrase");
   const [playing, setPlaying] = useState(true);
+  const [showCredits, setShowCredits] = useState(false);
 
   useEffect(() => {
     player.load(track);
@@ -43,6 +47,26 @@ export function Show({ track, onExit }: { track: Track; onExit: () => void }) {
       </div>
 
       <KineticStage track={track} pass={3} mode={mode} />
+
+      {/* Photo attribution — free-photo APIs require crediting the creators. */}
+      {attribution && (
+        <div className="pointer-events-none absolute inset-x-0 bottom-1 z-30 flex flex-col items-center gap-1">
+          {showCredits && credits.length > 0 && (
+            <div className="pointer-events-auto max-h-40 max-w-2xl overflow-y-auto rounded-lg bg-black/70 p-3 text-center font-mono text-[10px] leading-relaxed text-white/70 backdrop-blur">
+              {credits.map((c, i) => (
+                <div key={i}>
+                  <span className="text-white/40">{c.word}:</span>{" "}
+                  <a href={c.authorUrl || c.sourceUrl} target="_blank" rel="noreferrer" className="underline">{c.author}</a>
+                  <span className="text-white/40"> · {c.source}</span>
+                </div>
+              ))}
+            </div>
+          )}
+          <button onClick={() => setShowCredits((s) => !s)} className="pointer-events-auto rounded-full bg-black/40 px-3 py-1 font-mono text-[9px] uppercase tracking-wider text-white/40 hover:text-white/70">
+            {attribution}{credits.length ? ` · ${showCredits ? "hide" : "credits"}` : ""}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
