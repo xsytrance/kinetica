@@ -14,3 +14,6 @@ sample-stems/
 # tauri
 src-tauri/target/
 src-tauri/gen/
+
+# ts build cache
+*.tsbuildinfo

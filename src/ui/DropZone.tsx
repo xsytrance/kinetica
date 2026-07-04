@@ -9,7 +9,7 @@ function detectOS(): string {
   return "";
 }
 
-export function DropZone({ onFile, error }: { onFile: (f: File) => void; error: string | null }) {
+export function DropZone({ onFile, onDemo, error }: { onFile: (f: File) => void; onDemo: () => void; error: string | null }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const os = detectOS();
@@ -44,6 +44,10 @@ export function DropZone({ onFile, error }: { onFile: (f: File) => void; error: 
         <span className="font-mono text-[11px] uppercase tracking-wider text-white/40">100% local · nothing is uploaded</span>
       </button>
       <input ref={inputRef} type="file" accept=".zip" className="hidden" onChange={(e) => pick(e.target.files)} />
+
+      <button onClick={onDemo} className="font-mono text-xs uppercase tracking-wider text-white/60 transition hover:text-[var(--theme-primary)]">
+        ✨ or try a demo — no file needed
+      </button>
 
       {error && <p className="max-w-xl text-center text-sm text-red-300">{error}</p>}
 

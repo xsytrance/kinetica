@@ -8,6 +8,7 @@ import { LyricsStep } from "./LyricsStep";
 import { ArtStep } from "./ArtStep";
 import { Show } from "./Show";
 import { buildTrack } from "@/lib/buildTrack";
+import { makeDemo } from "@/demo/demoSong";
 import { handleRedirectCode, installAuthListener } from "@/ai/openrouterAuth";
 import type { Track } from "@/lib/types";
 import type { SyncedWord } from "@/lib/lyrics";
@@ -59,9 +60,23 @@ export function App() {
     setTrack(t); setCredits(cr); setAttribution(attr); setStep("show");
   }, []);
 
+  const onDemo = useCallback(async () => {
+    setError(null); setStep("processing"); setProgress("Cooking up a demo beat…");
+    try {
+      const { stems, lyricsLrc, words, title } = makeDemo();
+      const { url } = mixdownToWavUrl(stems);
+      const stemData = await analyzeStems(stems);
+      const t = buildTrack({ title, lyricsLrc, words, stemData });
+      t.audioUrl = url;
+      setTrack(t); setCredits([]); setAttribution(""); setStep("show");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e)); setStep("drop");
+    }
+  }, []);
+
   return (
     <div className="relative min-h-[100dvh] w-full">
-      {step === "drop" && <DropZone onFile={onFile} error={error} />}
+      {step === "drop" && <DropZone onFile={onFile} onDemo={onDemo} error={error} />}
       {step === "processing" && (
         <div className="flex min-h-[100dvh] flex-col items-center justify-center gap-4 p-6 text-center">
           <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-[var(--theme-primary)]" />
