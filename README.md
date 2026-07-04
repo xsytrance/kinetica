@@ -89,8 +89,8 @@ the planet.
 - [x] **Level 1**: OpenRouter AI direction (emotions/sections/palette/imagery
       prompts) that also sharpens the photo search; optional AI image-gen with a
       cost warning + per-run cap
-- [ ] **Level 2**: local Ollama + ComfyUI, with setup docs (see
-      [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md))
+- [x] **Level 2**: 100% local — Ollama (direction) + ComfyUI (art), free &
+      private, with setup docs (see [docs/LOCAL_SETUP.md](docs/LOCAL_SETUP.md))
 - [ ] More photo sources (Pixabay, Wikimedia), effect/template presets, shareable links
 
 ## Credits
