@@ -2,13 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useMusicPlayer } from "@/audio/player";
 import { KineticStage, clean } from "@/engine/KineticStage";
 import { WordFxPanel } from "./WordFxPanel";
-import type { TextEffect } from "@/lib/effects/registry";
+import { ALL_TEXT_EFFECTS, type TextEffect } from "@/lib/effects/registry";
 import { ALL_PARTICLE_MODES, type ParticleMode } from "@/engine/KineticParticles";
 import { useRecorder } from "@/export/useRecorder";
 import { PRESETS } from "@/lib/presets";
 import type { Preset } from "@/lib/presets";
 import { loadCustomPresets, saveCustomPreset, deleteCustomPreset } from "@/lib/customPresets";
-import { songLook } from "@/lib/songLook";
+import { songLook, seedWordEffects } from "@/lib/songLook";
 import { VibeBuilder } from "./VibeBuilder";
 import { deriveTheme } from "@/lib/theme";
 import type { ThemeOverride } from "@/lib/theme";
@@ -76,7 +76,12 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
     setPresetId(look.presetId);
     setParticleOverride(look.particle);
     setDeck(look.deck);
-  }, [look]);
+    // Seed distinctive per-word effects from the look's vibe palette, so each
+    // song plays alive & unique. Preserve any overrides the planet already carried.
+    const lp = allPresets.find((p) => p.id === look.presetId);
+    const seeded = seedWordEffects(uniqueWords, lp?.effects ?? ALL_TEXT_EFFECTS, look.seed);
+    setOverrides({ ...seeded, ...(track.planet?.effects?.overrides ?? {}) });
+  }, [look]); // eslint-disable-line react-hooks/exhaustive-deps
   // A dropped cover seeds the "auto" palette (extractPalette → 3 vivid swatches).
   const [coverTheme, setCoverTheme] = useState<ThemeOverride | null>(null);
   const onCover = (file: File | undefined) => {
