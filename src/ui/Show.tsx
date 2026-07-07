@@ -61,6 +61,7 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
 
   // ── Director's deck: live weather override + intensity knobs ──
   const [deckOpen, setDeckOpen] = useState(false);
+  const [legend, setLegend] = useState(false);
   const [particleOverride, setParticleOverride] = useState<ParticleMode | "">("");
   const [deck, setDeck] = useState({ density: 1, glow: 0, grain: 0, vignette: 0 });
   const setDeckVal = (k: keyof typeof deck, v: number) => setDeck((d) => ({ ...d, [k]: v }));
@@ -124,6 +125,10 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
           <button onClick={toggle} className="pointer-events-auto ml-1 rounded-full border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white/70">
             {playing ? "❚❚" : "▶"}
           </button>
+          <button onClick={() => setLegend((v) => !v)} title="How to play with the show" aria-label="Interactions"
+            className={`pointer-events-auto rounded-full border px-3 py-2 font-mono text-[10px] transition ${legend ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 text-white/70 hover:text-white"}`}>
+            ?
+          </button>
           {rec.recording ? (
             <button onClick={rec.stop} className="pointer-events-auto rounded-full bg-red-500 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white">■ Stop</button>
           ) : (
@@ -175,6 +180,22 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
           <button onClick={() => setShowCredits((s) => !s)} className="pointer-events-auto rounded-full bg-black/40 px-3 py-1 font-mono text-[9px] uppercase tracking-wider text-white/40 hover:text-white/70">
             {attribution}{credits.length ? ` · ${showCredits ? "hide" : "credits"}` : ""}
           </button>
+        </div>
+      )}
+
+      {legend && (
+        <div className="pointer-events-auto absolute left-1/2 top-16 z-40 w-[min(22rem,90vw)] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#0b0810]/95 p-4 backdrop-blur">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-sm font-black text-white">Play with the show</h3>
+            <button onClick={() => setLegend(false)} className="font-mono text-xs text-white/50 hover:text-white">✕</button>
+          </div>
+          <ul className="mt-2 space-y-1.5 font-mono text-[11px] leading-snug text-white/70">
+            <li><b className="text-white">Tap a word</b> — it reacts in the song’s own language (burn, shatter, bloom…).</li>
+            <li><b className="text-white">Drag a word</b> — fling it around; it flies with real physics.</li>
+            <li><b className="text-white">Swipe the stage</b> — comb a glowing comet through the weather.</li>
+            <li><b className="text-white">Blow / shout</b> — if the song has mic moments, they detonate the drop.</li>
+            <li className="text-white/45">The show already answers the beat on its own — just watch, or jump in.</li>
+          </ul>
         </div>
       )}
 
