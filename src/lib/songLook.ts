@@ -24,7 +24,17 @@ const MOOD_PRESET: [RegExp, string][] = [
   [/\b(forest|tree|trees|green|wild|earth|nature|grow|bloom|garden)\b/i, "forest"],
   [/\b(gold|golden|rich|crown|luxury|shine|sun|sunlight|summer|honey)\b/i, "golden"],
   [/\b(blood|kill|death|dead|moon|curse|sin|grave|ghost)\b/i, "bloodmoon"],
-  [/\b(ocean|sea|wave|waves|rain|river|water|tide|storm)\b/i, "vapor"],
+  [/\b(space|star|stars|galaxy|universe|cosmic|orbit|planet|astral)\b/i, "cosmic"],
+  [/\b(sky|aurora|borealis|glacier|northern|shimmer|iridescent)\b/i, "aurora"],
+  [/\b(sunset|dusk|evening|horizon|amber|twilight|orange sky)\b/i, "sunset"],
+  [/\b(heaven|soul|spirit|holy|divine|ascend|weightless|ethereal|halo)\b/i, "ethereal"],
+  [/\b(desert|sand|dune|dunes|dry|drought|mirage|arid|sahara)\b/i, "desert"],
+  [/\b(machine|steel|metal|iron|factory|concrete|engine|grind|industrial)\b/i, "industrial"],
+  [/\b(storm|rain|thunder|monsoon|downpour|flood|drench)\b/i, "monsoon"],
+  [/\b(broken|rust|dirty|rough|worn|grunge|torn|ragged)\b/i, "grunge"],
+  [/\b(sweet|candy|sugar|bubblegum|fun|playful|giddy)\b/i, "candy"],
+  [/\b(chill|mellow|lazy|study|coffee|lofi|lo-fi|nostalg)\b/i, "lofi"],
+  [/\b(ocean|sea|wave|waves|river|water|tide)\b/i, "vapor"],
 ];
 
 // Ambient weather for extra per-song variance (the preset also forces one; an
