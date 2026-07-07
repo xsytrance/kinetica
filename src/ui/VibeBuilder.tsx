@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Preset } from "@/lib/presets";
 import type { ParticleMode } from "@/engine/KineticParticles";
-import type { TextEffect } from "@/lib/effects/registry";
+import type { TextEffect, SurfaceMode } from "@/lib/effects/registry";
 import { newPresetId } from "@/lib/customPresets";
 
 const FONTS: { label: string; value: string }[] = [
@@ -26,6 +26,8 @@ const GRADES: { label: string; value: string | undefined }[] = [
   { label: "Soft dream", value: "fx-dreamcore" },
 ];
 const ALL_EFFECTS: TextEffect[] = ["burn", "shatter", "dissolve", "bloom", "glitch", "freeze", "melt", "carve", "slam", "wave", "neon", "pulse", "whisper", "fizz", "type"];
+// "" = the song's own lyric-derived surface; "none" = clean glass; else forced.
+const SURFACES: (SurfaceMode | "none" | "")[] = ["", "none", "mud", "rust", "cracks", "condensation", "vines", "moss", "blood", "sand"];
 const COLOR_LABELS = ["Primary", "Secondary", "Accent", "Background"];
 
 export function VibeBuilder({ initial, onSave, onCancel, onDelete }: {
@@ -40,6 +42,7 @@ export function VibeBuilder({ initial, onSave, onCancel, onDelete }: {
   const [font, setFont] = useState(initial?.font ?? FONTS[0].value);
   const [particle, setParticle] = useState<ParticleMode | "">(initial?.particle ?? "");
   const [stageClass, setStageClass] = useState<string | undefined>(initial?.stageClass);
+  const [surface, setSurface] = useState<SurfaceMode | "none" | "">(initial?.surface ?? "");
   const [effects, setEffects] = useState<TextEffect[]>(initial?.effects ?? []);
 
   const setColor = (i: number, v: string) => setColors((c) => c.map((x, j) => (j === i ? v : x)) as [string, string, string, string]);
@@ -53,6 +56,7 @@ export function VibeBuilder({ initial, onSave, onCancel, onDelete }: {
     stageClass,
     particle: particle || undefined,
     effects: effects.length ? effects : undefined,
+    surface: surface || undefined,
   });
 
   const field = "rounded-lg border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-white outline-none focus:border-[var(--theme-secondary)]";
@@ -88,8 +92,8 @@ export function VibeBuilder({ initial, onSave, onCancel, onDelete }: {
           ))}
         </div>
 
-        {/* font + particle + grade */}
-        <div className="mt-4 grid grid-cols-3 gap-2">
+        {/* font + particle + grade + surface */}
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
           <div>
             <label className="block font-mono text-[10px] uppercase tracking-wider text-white/45">Font</label>
             <select value={font} onChange={(e) => setFont(e.target.value)} className={`mt-1 w-full ${field}`}>
@@ -106,6 +110,12 @@ export function VibeBuilder({ initial, onSave, onCancel, onDelete }: {
             <label className="block font-mono text-[10px] uppercase tracking-wider text-white/45">Grade</label>
             <select value={stageClass ?? ""} onChange={(e) => setStageClass(e.target.value || undefined)} className={`mt-1 w-full ${field}`}>
               {GRADES.map((g) => <option key={g.label} value={g.value ?? ""} className="bg-black">{g.label}</option>)}
+            </select>
+          </div>
+          <div>
+            <label className="block font-mono text-[10px] uppercase tracking-wider text-white/45">Surface</label>
+            <select value={surface} onChange={(e) => setSurface(e.target.value as SurfaceMode | "none" | "")} className={`mt-1 w-full ${field}`}>
+              {SURFACES.map((s) => <option key={s || "auto"} value={s} className="bg-black">{s || "auto"}</option>)}
             </select>
           </div>
         </div>

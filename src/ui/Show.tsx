@@ -141,10 +141,10 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
       <div className={`absolute inset-0 ${preset.stageClass ?? ""}`}>
         <KineticStage
           track={track} pass={3} mode={mode} forceParticle={preset.particle}
-          // Bias the word effects to the preset's palette (keeps any per-word
+          // Bias word effects + surface to the preset (keeps any per-word
           // overrides the planet already carries). Auto = no filter.
-          effects={preset.effects || track.planet?.effects?.overrides
-            ? { allow: preset.effects, overrides: track.planet?.effects?.overrides }
+          effects={preset.effects || preset.surface || track.planet?.effects?.overrides
+            ? { allow: preset.effects, surface: preset.surface, overrides: track.planet?.effects?.overrides }
             : undefined}
         />
       </div>
