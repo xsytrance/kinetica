@@ -10,4 +10,9 @@ export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
+  // Local dev only (not used by the static build): accept the tailnet hostname so
+  // `tailscale serve` can proxy the dev server to other devices on the tailnet.
+  server: {
+    allowedHosts: [".ts.net"],
+  },
 });
