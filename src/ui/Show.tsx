@@ -8,6 +8,7 @@ import { useRecorder } from "@/export/useRecorder";
 import { PRESETS } from "@/lib/presets";
 import type { Preset } from "@/lib/presets";
 import { loadCustomPresets, saveCustomPreset, deleteCustomPreset } from "@/lib/customPresets";
+import { songLook } from "@/lib/songLook";
 import { VibeBuilder } from "./VibeBuilder";
 import { deriveTheme } from "@/lib/theme";
 import type { ThemeOverride } from "@/lib/theme";
@@ -66,6 +67,16 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
   const [deck, setDeck] = useState({ density: 1, glow: 0, grain: 0, vignette: 0 });
   const setDeckVal = (k: keyof typeof deck, v: number) => setDeck((d) => ({ ...d, [k]: v }));
   const PARTICLES: (ParticleMode | "")[] = ["", ...ALL_PARTICLE_MODES];
+
+  // Per-song "look": each song opens with a distinctive seeded vibe/weather/
+  // intensity (so no two songs look the same) — 🎲 Surprise re-rolls it.
+  const [salt, setSalt] = useState(0);
+  const look = useMemo(() => songLook(track.title || "", track.lyrics || "", salt), [track, salt]);
+  useEffect(() => {
+    setPresetId(look.presetId);
+    setParticleOverride(look.particle);
+    setDeck(look.deck);
+  }, [look]);
   // A dropped cover seeds the "auto" palette (extractPalette → 3 vivid swatches).
   const [coverTheme, setCoverTheme] = useState<ThemeOverride | null>(null);
   const onCover = (file: File | undefined) => {
@@ -247,6 +258,7 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
                 {customPresets.length > 0 && <optgroup label="Your vibes">{customPresets.map((p) => <option key={p.id} value={p.id} className="bg-black">✎ {p.label}</option>)}</optgroup>}
               </select>
               <button onClick={() => setBuilder({ initial: isCustom ? preset : undefined })} title={isCustom ? "Edit vibe" : "New vibe"} className="rounded-lg border border-white/15 px-2.5 py-1.5 font-mono text-[11px] text-white/70 hover:text-white">{isCustom ? "✎" : "＋"}</button>
+              <button onClick={() => setSalt((s) => s + 1)} title="Surprise me — a fresh look for this song" className="rounded-lg border border-white/15 px-2.5 py-1.5 font-mono text-[11px] text-white/70 hover:text-white">🎲</button>
             </div>
           </div>
 
