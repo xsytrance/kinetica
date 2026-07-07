@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Track } from "@/lib/types";
 import { IMAGE_SOURCES, getSource } from "@/images/sources";
-import { populatePhotos, withPhotos, type Credit } from "@/images/populate";
+import { withPhotos, searchCandidates, searchKeyword, curationResult, type Credit, type KeywordCandidates } from "@/images/populate";
+import { BackdropCurator } from "./BackdropCurator";
 import { photoQueries } from "@/lib/keywords";
 import { analyzeSong } from "@/ai/openrouter";
 import { analyzeSongOllama } from "@/ai/local";
@@ -70,10 +71,28 @@ export function ArtStep({ track, duration, onDone }: {
   const [msg, setMsg] = useState("");
   const [previews, setPreviews] = useState<string[]>([]);
   const [result, setResult] = useState<{ credits: Credit[]; attribution: string } | null>(null);
+  // Curation: candidate photos per keyword + the user's chosen url per word.
+  const [candidates, setCandidates] = useState<KeywordCandidates[]>([]);
+  const [chosen, setChosen] = useState<Record<string, string>>({});
+  const [queries, setQueries] = useState<Record<string, string>>({});
+  const [reSearching, setReSearching] = useState<string | null>(null);
 
   const pickSource = useCallback((id: string) => {
     setSourceId(id); setImgKey(ls(`kinetica-key-${id}`)); setPreviews([]); setMsg(""); setResult(null);
+    setCandidates([]); setChosen({}); setQueries({});
   }, []);
+
+  const reSearch = useCallback(async (word: string) => {
+    const item = candidates.find((c) => c.word === word);
+    if (!item) return;
+    setReSearching(word);
+    try {
+      const photos = await searchKeyword(sourceId, queries[word] ?? item.query, imgKey.trim() || undefined);
+      setCandidates((cs) => cs.map((c) => (c.word === word ? { ...c, photos } : c)));
+      setChosen((ch) => ({ ...ch, [word]: photos[0]?.url ?? ch[word] }));
+    } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
+    setReSearching(null);
+  }, [candidates, queries, sourceId, imgKey]);
 
   const pull = useCallback(async () => {
     setBusy(true); setMsg(""); setPreviews([]); setResult(null);
@@ -101,18 +120,27 @@ export function ArtStep({ track, duration, onDone }: {
         setMsg(`Placed ${Object.keys(keywords).length} AI backdrops ✓`);
       } else {
         if (source.needsKey && imgKey.trim()) localStorage.setItem(`kinetica-key-${sourceId}`, imgKey.trim());
-        const res = await populatePhotos(working, { sourceId, key: imgKey.trim() || undefined, vibe, onProgress: prog("Finding") });
-        if (!Object.keys(res.keywords).length) { setMsg("No photos found — try a different source or vibe."); setBusy(false); return; }
-        setWorking((w) => withPhotos(w, res.keywords));
-        setPreviews(Object.values(res.keywords).slice(0, 8));
-        setResult({ credits: res.credits, attribution: res.attribution });
-        setMsg(`Placed ${Object.keys(res.keywords).length} photo backdrops ✓${res.warning ? ` — ${res.warning}` : ""}`);
+        const items = await searchCandidates(working, { sourceId, key: imgKey.trim() || undefined, vibe, onProgress: prog("Finding") });
+        const found = items.filter((it) => it.photos.length);
+        if (!found.length) { setMsg("No photos found — try a different source or vibe."); setBusy(false); return; }
+        setCandidates(items);
+        setQueries(Object.fromEntries(items.map((it) => [it.word, it.query])));
+        setChosen(Object.fromEntries(found.map((it) => [it.word, it.photos[0].url])));
+        setPreviews([]); setResult(null);
+        setMsg(`Found candidates for ${found.length} words — curate below, then start.`);
       }
     } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
   }, [useAiArt, engine, working, vibe, orKey, orImgModel, comfyHost, comfyCkpt, source, imgKey, sourceId]);
 
-  const start = () => onDone(working, result?.credits ?? [], result?.attribution ?? "");
+  const start = () => {
+    if (candidates.length) {
+      const { keywords, credits, attribution } = curationResult(candidates, chosen, imgKey.trim() || undefined);
+      onDone(withPhotos(working, keywords), credits, attribution);
+    } else {
+      onDone(working, result?.credits ?? [], result?.attribution ?? "");
+    }
+  };
   const field = "w-full rounded-lg border border-white/15 bg-white/5 px-3 py-2 font-mono text-xs text-white outline-none focus:border-[var(--theme-secondary)]";
 
   return (
@@ -217,6 +245,15 @@ export function ArtStep({ track, duration, onDone }: {
         </div>
         {previews.length > 0 && (
           <div className="mt-3 grid grid-cols-4 gap-2">{previews.map((u, i) => <img key={i} src={u} alt="" className="h-16 w-full rounded object-cover" />)}</div>
+        )}
+        {candidates.length > 0 && (
+          <BackdropCurator
+            items={candidates} chosen={chosen} queries={queries} reSearching={reSearching}
+            onChoose={(w, url) => setChosen((c) => ({ ...c, [w]: url }))}
+            onClear={(w) => setChosen((c) => { const { [w]: _drop, ...rest } = c; return rest; })}
+            onQuery={(w, q) => setQueries((qs) => ({ ...qs, [w]: q }))}
+            onReSearch={reSearch}
+          />
         )}
       </div>
 
