@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
-import type { TextEffect } from "@/lib/effects/registry";
+import { ALL_TEXT_EFFECTS, type TextEffect } from "@/lib/effects/registry";
 
-const ALL_EFFECTS: TextEffect[] = ["burn", "shatter", "dissolve", "bloom", "glitch", "freeze", "melt", "carve", "slam", "wave", "neon", "pulse", "whisper", "fizz", "type"];
+const ALL_EFFECTS = ALL_TEXT_EFFECTS;
 
 // Per-word effect override editor. Lists the song's unique words; assigning one
 // writes to overrides[key] (key = clean(word).toLowerCase(), the same key the

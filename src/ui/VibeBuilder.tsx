@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Preset } from "@/lib/presets";
 import type { ParticleMode } from "@/engine/KineticParticles";
-import type { TextEffect, SurfaceMode } from "@/lib/effects/registry";
+import { ALL_TEXT_EFFECTS, type TextEffect, type SurfaceMode } from "@/lib/effects/registry";
 import { newPresetId } from "@/lib/customPresets";
 
 const FONTS: { label: string; value: string }[] = [
@@ -25,7 +25,7 @@ const GRADES: { label: string; value: string | undefined }[] = [
   { label: "Scanlines", value: "fx-cyberpunk" },
   { label: "Soft dream", value: "fx-dreamcore" },
 ];
-const ALL_EFFECTS: TextEffect[] = ["burn", "shatter", "dissolve", "bloom", "glitch", "freeze", "melt", "carve", "slam", "wave", "neon", "pulse", "whisper", "fizz", "type"];
+const ALL_EFFECTS = ALL_TEXT_EFFECTS;
 // "" = the song's own lyric-derived surface; "none" = clean glass; else forced.
 const SURFACES: (SurfaceMode | "none" | "")[] = ["", "none", "mud", "rust", "cracks", "condensation", "vines", "moss", "blood", "sand"];
 const COLOR_LABELS = ["Primary", "Secondary", "Accent", "Background"];
