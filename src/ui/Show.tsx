@@ -194,7 +194,7 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
 
       <div className={`absolute inset-0 ${preset.stageClass ?? ""}`}>
         <KineticStage
-          track={track} pass={4} mode={mode}
+          track={track} pass={5} mode={mode}
           forceParticle={particleOverride || preset.particle}
           // Bias word effects + surface to the preset; per-word overrides (from
           // the FX panel) always win over the vibe. Auto = no filter.

@@ -43,8 +43,12 @@ body::before {
 /* ── Lyric engine — Kinetic template ─────────────────────────────────────── */
 .kinetic-stage {
   --emo: 0;
+  /* PHASE 5 cinematic camera: --cam-* (default identity) dolly the whole stage,
+     driven by the engine at pass >= 5 (Kinetica renders at pass 5). */
   transform:
-    scale(calc(1 + var(--beat) * 0.08 + var(--emo) * 0.04 + var(--kick, 0) * 0.035))
+    translate3d(var(--cam-x, 0px), var(--cam-y, 0px), 0)
+    rotate(var(--cam-rot, 0deg))
+    scale(calc((1 + var(--beat) * 0.08 + var(--emo) * 0.04 + var(--kick, 0) * 0.035) * var(--cam-scale, 1)))
     skewX(calc(var(--bass, 0) * -2.4deg))
     scaleY(calc(1 + var(--bass, 0) * 0.045));
   transition: transform 0.06s linear;
