@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMusicPlayer } from "@/audio/player";
-import { KineticStage } from "@/engine/KineticStage";
+import { KineticStage, clean } from "@/engine/KineticStage";
+import { WordFxPanel } from "./WordFxPanel";
+import type { TextEffect } from "@/lib/effects/registry";
 import { useRecorder } from "@/export/useRecorder";
 import { PRESETS } from "@/lib/presets";
 import type { Preset } from "@/lib/presets";
@@ -37,6 +39,24 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
   const allPresets = useMemo(() => [...PRESETS, ...customPresets], [customPresets]);
   const preset = allPresets.find((p) => p.id === presetId) ?? PRESETS[0];
   const isCustom = customPresets.some((p) => p.id === preset.id);
+
+  // ── Per-word effect overrides (director control) ──
+  const [overrides, setOverrides] = useState<Record<string, TextEffect>>(() => ({ ...(track.planet?.effects?.overrides ?? {}) }));
+  const [fxPanel, setFxPanel] = useState(false);
+  const uniqueWords = useMemo(() => {
+    const seen = new Map<string, string>(); // key -> display (first seen)
+    for (const w of track.lyricsSynced?.words ?? []) {
+      const display = clean(w.w);
+      const key = display.toLowerCase();
+      if (key && !seen.has(key)) seen.set(key, display);
+    }
+    return [...seen.entries()].map(([key, display]) => ({ key, display }));
+  }, [track]);
+  const setOverride = (key: string, fx: TextEffect | null) =>
+    setOverrides((o) => {
+      if (!fx) { const { [key]: _drop, ...rest } = o; return rest; }
+      return { ...o, [key]: fx };
+    });
   // A dropped cover seeds the "auto" palette (extractPalette → 3 vivid swatches).
   const [coverTheme, setCoverTheme] = useState<ThemeOverride | null>(null);
   const onCover = (file: File | undefined) => {
@@ -107,6 +127,13 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
           {coverTheme && (
             <button onClick={() => setCoverTheme(null)} title="Clear cover theme" className="rounded-full border border-white/15 bg-black/50 px-2 py-2 font-mono text-[10px] text-white/50 hover:text-white">✕</button>
           )}
+          <button
+            onClick={() => setFxPanel((v) => !v)}
+            title="Pin text effects to specific words" aria-label="Per-word effects"
+            className={`rounded-full border px-3 py-2 font-mono text-[10px] transition ${fxPanel || Object.keys(overrides).length ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 bg-black/50 text-white/70 hover:text-white"}`}
+          >
+            ✦ FX{Object.keys(overrides).length ? ` · ${Object.keys(overrides).length}` : ""}
+          </button>
         </div>
         <div className="pointer-events-auto flex gap-1.5">
           {MODES.map((m) => (
@@ -141,10 +168,10 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
       <div className={`absolute inset-0 ${preset.stageClass ?? ""}`}>
         <KineticStage
           track={track} pass={3} mode={mode} forceParticle={preset.particle}
-          // Bias word effects + surface to the preset (keeps any per-word
-          // overrides the planet already carries). Auto = no filter.
-          effects={preset.effects || preset.surface || track.planet?.effects?.overrides
-            ? { allow: preset.effects, surface: preset.surface, overrides: track.planet?.effects?.overrides }
+          // Bias word effects + surface to the preset; per-word overrides (from
+          // the FX panel) always win over the vibe. Auto = no filter.
+          effects={preset.effects || preset.surface || Object.keys(overrides).length
+            ? { allow: preset.effects, surface: preset.surface, overrides }
             : undefined}
         />
       </div>
@@ -167,6 +194,16 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
             {attribution}{credits.length ? ` · ${showCredits ? "hide" : "credits"}` : ""}
           </button>
         </div>
+      )}
+
+      {fxPanel && (
+        <WordFxPanel
+          words={uniqueWords}
+          overrides={overrides}
+          onSet={setOverride}
+          onClear={() => setOverrides({})}
+          onClose={() => setFxPanel(false)}
+        />
       )}
 
       {builder && (
