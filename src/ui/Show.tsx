@@ -99,6 +99,32 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
 
   const toggle = () => { player.toggle(); setPlaying((p) => !p); };
 
+  // Keyboard shortcuts (ignored while typing in a field). Surfaced in the legend.
+  const cyclePreset = (dir: 1 | -1) => {
+    const i = allPresets.findIndex((p) => p.id === presetId);
+    const n = allPresets.length;
+    setPresetId(allPresets[((i < 0 ? 0 : i) + dir + n) % n].id);
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const el = e.target as HTMLElement | null;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (el && (/^(INPUT|SELECT|TEXTAREA)$/.test(el.tagName) || el.isContentEditable)) return;
+      const k = e.key.toLowerCase();
+      if (e.key === " ") { e.preventDefault(); toggle(); }
+      else if (k === "1") setMode("phrase");
+      else if (k === "2") setMode("focus");
+      else if (k === "3") setMode("dynamic");
+      else if (k === "d") setDeckOpen((v) => !v);
+      else if (k === "f") setFxPanel((v) => !v);
+      else if (k === "h" || e.key === "?") setLegend((v) => !v);
+      else if (e.key === "[") cyclePreset(-1);
+      else if (e.key === "]") cyclePreset(1);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }); // deps intentionally omitted — closure reads latest state each render
+
   return (
     <div className="fixed inset-0 flex h-[100dvh] w-full flex-col overflow-hidden">
       {/* controls */}
@@ -196,6 +222,12 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
             <li><b className="text-white">Blow / shout</b> — if the song has mic moments, they detonate the drop.</li>
             <li className="text-white/45">The show already answers the beat on its own — just watch, or jump in.</li>
           </ul>
+          <div className="mt-3 border-t border-white/10 pt-2">
+            <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">Keys</p>
+            <p className="mt-1 font-mono text-[10px] leading-relaxed text-white/60">
+              <b className="text-white/80">space</b> play/pause · <b className="text-white/80">1/2/3</b> mode · <b className="text-white/80">D</b> director · <b className="text-white/80">F</b> per-word FX · <b className="text-white/80">[ ]</b> vibe · <b className="text-white/80">H</b> this help
+            </p>
+          </div>
         </div>
       )}
 
