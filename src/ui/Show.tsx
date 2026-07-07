@@ -2,8 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useMusicPlayer } from "@/audio/player";
 import { KineticStage } from "@/engine/KineticStage";
 import { useRecorder } from "@/export/useRecorder";
-import { PRESETS, getPreset } from "@/lib/presets";
+import { PRESETS } from "@/lib/presets";
+import type { Preset } from "@/lib/presets";
+import { loadCustomPresets, saveCustomPreset, deleteCustomPreset } from "@/lib/customPresets";
+import { VibeBuilder } from "./VibeBuilder";
 import { deriveTheme } from "@/lib/theme";
+import type { ThemeOverride } from "@/lib/theme";
+import { extractPalette } from "@/lib/palette";
 import type { Track } from "@/lib/types";
 import type { Credit } from "@/images/populate";
 
@@ -27,13 +32,27 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
 
   // ── Presets: one-click looks that re-grade the whole show ──
   const [presetId, setPresetId] = useState("auto");
-  const preset = getPreset(presetId);
-  const autoPalette = useMemo(() => {
-    const p = track.planet?.analysis?.palette;
-    if (Array.isArray(p) && p.length >= 3) return [p[0], p[1], p[2], p[3] ?? "#05030b"] as const;
+  const [customPresets, setCustomPresets] = useState<Preset[]>(() => loadCustomPresets());
+  const [builder, setBuilder] = useState<{ initial?: Preset } | null>(null);
+  const allPresets = useMemo(() => [...PRESETS, ...customPresets], [customPresets]);
+  const preset = allPresets.find((p) => p.id === presetId) ?? PRESETS[0];
+  const isCustom = customPresets.some((p) => p.id === preset.id);
+  // A dropped cover seeds the "auto" palette (extractPalette → 3 vivid swatches).
+  const [coverTheme, setCoverTheme] = useState<ThemeOverride | null>(null);
+  const onCover = (file: File | undefined) => {
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    extractPalette(url).then((t) => { setCoverTheme(t); if (t) setPresetId("auto"); })
+      .finally(() => URL.revokeObjectURL(url));
+  };
+  const autoPalette = useMemo((): readonly [string, string, string, string] => {
+    const pal = track.planet?.analysis?.palette;
     const t = deriveTheme(track.color || "#ff2bd6");
-    return [t.primary, t.secondary, t.accent, t.bg] as const;
-  }, [track]);
+    const bg = (Array.isArray(pal) && typeof pal[3] === "string" ? pal[3] : null) ?? t.bg;
+    if (coverTheme) return [coverTheme.primary ?? t.primary, coverTheme.secondary ?? t.secondary, coverTheme.accent ?? t.accent, bg];
+    if (Array.isArray(pal) && pal.length >= 3) return [pal[0] ?? t.primary, pal[1] ?? t.secondary, pal[2] ?? t.accent, bg];
+    return [t.primary, t.secondary, t.accent, t.bg];
+  }, [track, coverTheme]);
   useEffect(() => {
     const r = document.documentElement.style;
     const [p, s, a, bg] = preset.palette ?? autoPalette;
@@ -65,7 +84,29 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
             className="rounded-full border border-white/15 bg-black/50 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-white/70 outline-none"
           >
             {PRESETS.map((p) => <option key={p.id} value={p.id} className="bg-black text-white">✦ {p.label}</option>)}
+            {customPresets.length > 0 && (
+              <optgroup label="Your vibes">
+                {customPresets.map((p) => <option key={p.id} value={p.id} className="bg-black text-white">✎ {p.label}</option>)}
+              </optgroup>
+            )}
           </select>
+          <button
+            onClick={() => setBuilder({ initial: isCustom ? preset : undefined })}
+            title={isCustom ? "Edit this vibe" : "Create a custom vibe"} aria-label={isCustom ? "Edit vibe" : "New vibe"}
+            className="rounded-full border border-white/15 bg-black/50 px-3 py-2 font-mono text-[10px] text-white/70 hover:text-white"
+          >
+            {isCustom ? "✎ Edit" : "＋ Vibe"}
+          </button>
+          <label
+            title="Theme the show from a cover image"
+            className={`cursor-pointer rounded-full border px-3 py-2 font-mono text-[10px] transition ${coverTheme ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 bg-black/50 text-white/70 hover:text-white"}`}
+          >
+            {coverTheme ? "🎨 Cover ✓" : "🎨 Cover"}
+            <input type="file" accept="image/*" className="hidden" onChange={(e) => onCover(e.target.files?.[0])} />
+          </label>
+          {coverTheme && (
+            <button onClick={() => setCoverTheme(null)} title="Clear cover theme" className="rounded-full border border-white/15 bg-black/50 px-2 py-2 font-mono text-[10px] text-white/50 hover:text-white">✕</button>
+          )}
         </div>
         <div className="pointer-events-auto flex gap-1.5">
           {MODES.map((m) => (
@@ -126,6 +167,19 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
             {attribution}{credits.length ? ` · ${showCredits ? "hide" : "credits"}` : ""}
           </button>
         </div>
+      )}
+
+      {builder && (
+        <VibeBuilder
+          initial={builder.initial}
+          onCancel={() => setBuilder(null)}
+          onSave={(p) => { setCustomPresets(saveCustomPreset(p)); setPresetId(p.id); setBuilder(null); }}
+          onDelete={(id) => {
+            setCustomPresets(deleteCustomPreset(id));
+            setPresetId((cur) => (cur === id ? "auto" : cur));
+            setBuilder(null);
+          }}
+        />
       )}
     </div>
   );
