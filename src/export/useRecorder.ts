@@ -26,11 +26,22 @@ export function useRecorder(io: RecorderIO) {
     setRecording(false);
   }, []);
 
-  const start = useCallback(async () => {
+  const start = useCallback(async (cropEl?: HTMLElement | null) => {
     setError(null); setDownloadUrl(null);
     try {
       const disp = await navigator.mediaDevices.getDisplayMedia({ video: { frameRate: 30 } as MediaTrackConstraints, audio: false });
       dispRef.current = disp;
+      // Region Capture (Chromium): when the show runs in an aspect frame
+      // (9:16 / 1:1), crop the recording to that element so the export is a
+      // real vertical/square video, not a letterboxed tab. Only applies when
+      // the user shares THIS tab; anything else silently stays full-frame.
+      if (cropEl) {
+        try {
+          const CT = (window as unknown as { CropTarget?: { fromElement(el: Element): Promise<unknown> } }).CropTarget;
+          const track = disp.getVideoTracks()[0] as MediaStreamTrack & { cropTo?: (t: unknown) => Promise<void> };
+          if (CT && track?.cropTo) await track.cropTo(await CT.fromElement(cropEl));
+        } catch { /* unsupported browser / non-tab surface — full capture */ }
+      }
       const audio = io.getAudioStream();
       const stream = new MediaStream([...disp.getVideoTracks(), ...(audio?.getAudioTracks() ?? [])]);
       const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"].find((m) => MediaRecorder.isTypeSupported(m)) || "video/webm";

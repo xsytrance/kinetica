@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useMusicPlayer } from "@/audio/player";
 import { KineticStage, clean } from "@/engine/KineticStage";
 import { WordFxPanel } from "./WordFxPanel";
@@ -24,6 +24,22 @@ const MODES: { id: Mode; label: string }[] = [
   { id: "dynamic", label: "Dynamic" },
 ];
 
+// ── Frame: the show's canvas shape (Phase 2.4 — vertical/social mode). ──────
+// The engine paints in `fixed inset-0` layers, so framing works by wrapping
+// the stage in a TRANSFORMED box: a transform makes an ancestor the containing
+// block for fixed descendants, so every engine layer letterboxes to the frame
+// with zero engine changes. Chrome (deck, legend, banners) stays outside.
+type Frame = "wide" | "vertical" | "square";
+const FRAMES: { id: Frame; label: string; hint: string }[] = [
+  { id: "wide", label: "Wide", hint: "16:9 — fills the screen" },
+  { id: "vertical", label: "9:16", hint: "TikTok / Reels / Shorts" },
+  { id: "square", label: "1:1", hint: "square, for the feed" },
+];
+const FRAME_SIZE: Record<Exclude<Frame, "wide">, CSSProperties> = {
+  vertical: { width: "min(100vw, calc(100dvh * 9 / 16))", aspectRatio: "9 / 16" },
+  square: { width: "min(100vw, 100dvh)", aspectRatio: "1 / 1" },
+};
+
 export function Show({ track, onExit, credits = [], attribution = "" }: {
   track: Track; onExit: () => void; credits?: Credit[]; attribution?: string;
 }) {
@@ -34,6 +50,16 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
   const recIo = useMemo(() => ({ getAudioStream: player.getAudioStream, seek: player.seek, play: player.play, duration: player.duration }), [player]);
   const rec = useRecorder(recIo);
   const safeTitle = (track.title || "kinetica").replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+
+  // ── Frame (canvas shape), remembered across sessions ──
+  const [frame, setFrame] = useState<Frame>(() => {
+    const saved = localStorage.getItem("kinetica-frame");
+    return FRAMES.some((f) => f.id === saved) ? (saved as Frame) : "wide";
+  });
+  useEffect(() => { localStorage.setItem("kinetica-frame", frame); }, [frame]);
+  // The framed stage element — recording crops to it (Region Capture) so a
+  // 9:16 show exports as a real 9:16 video, not a letterboxed tab.
+  const frameEl = useRef<HTMLDivElement>(null);
 
   // ── Presets: one-click looks that re-grade the whole show ──
   const [presetId, setPresetId] = useState("auto");
@@ -134,6 +160,7 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
       else if (k === "3") setMode("dynamic");
       else if (k === "d") setDeckOpen((v) => !v);
       else if (k === "f") setFxPanel((v) => !v);
+      else if (k === "v") setFrame((cur) => FRAMES[(FRAMES.findIndex((f) => f.id === cur) + 1) % FRAMES.length].id);
       else if (k === "h" || e.key === "?") setLegend((v) => !v);
       else if (e.key === "[") cyclePreset(-1);
       else if (e.key === "]") cyclePreset(1);
@@ -175,7 +202,7 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
           {rec.recording ? (
             <button onClick={rec.stop} className="pointer-events-auto rounded-full bg-red-500 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white">■ Stop</button>
           ) : (
-            <button onClick={rec.start} className="pointer-events-auto rounded-full border border-red-400/60 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-red-300 hover:bg-red-500/20">● Record</button>
+            <button onClick={() => rec.start(frame === "wide" ? null : frameEl.current)} className="pointer-events-auto rounded-full border border-red-400/60 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-red-300 hover:bg-red-500/20">● Record</button>
           )}
         </div>
       </div>
@@ -193,18 +220,34 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
         </div>
       )}
 
-      <div className={`absolute inset-0 ${preset.stageClass ?? ""}`}>
-        <KineticStage
-          track={track} pass={5} mode={mode}
-          forceParticle={particleOverride || preset.particle}
-          // Bias word effects + surface to the preset; per-word overrides (from
-          // the FX panel) always win over the vibe. Auto = no filter.
-          effects={preset.effects || preset.surface || Object.keys(overrides).length
-            ? { allow: preset.effects, surface: preset.surface, overrides }
-            : undefined}
-          deck={deck}
-        />
-      </div>
+      {(() => {
+        const stage = (
+          <KineticStage
+            track={track} pass={5} mode={mode}
+            forceParticle={particleOverride || preset.particle}
+            // Bias word effects + surface to the preset; per-word overrides (from
+            // the FX panel) always win over the vibe. Auto = no filter.
+            effects={preset.effects || preset.surface || Object.keys(overrides).length
+              ? { allow: preset.effects, surface: preset.surface, overrides }
+              : undefined}
+            deck={deck}
+          />
+        );
+        if (frame === "wide") {
+          return <div ref={frameEl} className={`absolute inset-0 ${preset.stageClass ?? ""}`}>{stage}</div>;
+        }
+        return (
+          <div className="absolute inset-0 flex items-center justify-center bg-black">
+            {/* translateZ(0) makes this box the containing block for the
+                engine's fixed layers — the whole show letterboxes to it. */}
+            <div ref={frameEl}
+              className={`relative max-h-full overflow-hidden border border-white/10 ${preset.stageClass ?? ""}`}
+              style={{ ...FRAME_SIZE[frame], transform: "translateZ(0)" }}>
+              {stage}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Photo attribution — free-photo APIs require crediting the creators. */}
       {attribution && (
@@ -242,7 +285,7 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
           <div className="mt-3 border-t border-white/10 pt-2">
             <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">Keys</p>
             <p className="mt-1 font-mono text-[10px] leading-relaxed text-white/60">
-              <b className="text-white/80">space</b> play/pause · <b className="text-white/80">1/2/3</b> mode · <b className="text-white/80">D</b> director · <b className="text-white/80">F</b> per-word FX · <b className="text-white/80">[ ]</b> vibe · <b className="text-white/80">H</b> this help
+              <b className="text-white/80">space</b> play/pause · <b className="text-white/80">1/2/3</b> mode · <b className="text-white/80">V</b> frame · <b className="text-white/80">D</b> director · <b className="text-white/80">F</b> per-word FX · <b className="text-white/80">[ ]</b> vibe · <b className="text-white/80">H</b> this help
             </p>
           </div>
         </div>
@@ -266,6 +309,24 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
               <button onClick={() => setBuilder({ initial: isCustom ? preset : undefined })} title={isCustom ? "Edit vibe" : "New vibe"} className="rounded-lg border border-white/15 px-2.5 py-1.5 font-mono text-[11px] text-white/70 hover:text-white">{isCustom ? "✎" : "＋"}</button>
               <button onClick={() => setSalt((s) => s + 1)} title="Surprise me — a fresh look for this song" className="rounded-lg border border-white/15 px-2.5 py-1.5 font-mono text-[11px] text-white/70 hover:text-white">🎲</button>
             </div>
+          </div>
+
+          {/* Frame — the canvas shape (wide fills the screen; 9:16/1:1 letterbox) */}
+          <div>
+            <label className="block font-mono text-[10px] uppercase tracking-wider text-white/45">Frame</label>
+            <div className="mt-1 flex gap-1.5">
+              {FRAMES.map((f) => (
+                <button key={f.id} onClick={() => setFrame(f.id)} title={f.hint}
+                  className={`flex-1 rounded-lg border px-2 py-1.5 font-mono text-[11px] transition ${frame === f.id ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 text-white/70 hover:text-white"}`}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+            {frame !== "wide" && (
+              <p className="mt-1 font-mono text-[9px] leading-snug text-white/35">
+                Recording crops to the frame (pick “This Tab” when sharing).
+              </p>
+            )}
           </div>
 
           {/* Cover + Weather */}
