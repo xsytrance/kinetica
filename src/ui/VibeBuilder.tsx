@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { Preset } from "@/lib/presets";
-import type { ParticleMode } from "@/engine/KineticParticles";
+import { ALL_PARTICLE_MODES, type ParticleMode } from "@/engine/KineticParticles";
 import { ALL_TEXT_EFFECTS, type TextEffect, type SurfaceMode } from "@/lib/effects/registry";
 import { newPresetId } from "@/lib/customPresets";
 
@@ -12,7 +12,7 @@ const FONTS: { label: string; value: string }[] = [
   { label: "Rounded", value: '"Trebuchet MS", "Segoe UI", sans-serif' },
   { label: "Mono", value: '"Courier New", monospace' },
 ];
-const PARTICLES: (ParticleMode | "")[] = ["", "dust", "embers", "ash", "rain", "snow", "bubbles", "sparks", "petals", "pollen"];
+const PARTICLES: (ParticleMode | "")[] = ["", ...ALL_PARTICLE_MODES];
 // Friendly names over the shared color-grade classes (index.css .fx-*).
 const GRADES: { label: string; value: string | undefined }[] = [
   { label: "None", value: undefined },

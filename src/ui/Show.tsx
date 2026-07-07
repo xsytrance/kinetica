@@ -3,7 +3,7 @@ import { useMusicPlayer } from "@/audio/player";
 import { KineticStage, clean } from "@/engine/KineticStage";
 import { WordFxPanel } from "./WordFxPanel";
 import type { TextEffect } from "@/lib/effects/registry";
-import type { ParticleMode } from "@/engine/KineticParticles";
+import { ALL_PARTICLE_MODES, type ParticleMode } from "@/engine/KineticParticles";
 import { useRecorder } from "@/export/useRecorder";
 import { PRESETS } from "@/lib/presets";
 import type { Preset } from "@/lib/presets";
@@ -65,7 +65,7 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
   const [particleOverride, setParticleOverride] = useState<ParticleMode | "">("");
   const [deck, setDeck] = useState({ density: 1, glow: 0, grain: 0, vignette: 0 });
   const setDeckVal = (k: keyof typeof deck, v: number) => setDeck((d) => ({ ...d, [k]: v }));
-  const PARTICLES: (ParticleMode | "")[] = ["", "dust", "embers", "ash", "rain", "snow", "bubbles", "sparks", "petals", "pollen"];
+  const PARTICLES: (ParticleMode | "")[] = ["", ...ALL_PARTICLE_MODES];
   // A dropped cover seeds the "auto" palette (extractPalette → 3 vivid swatches).
   const [coverTheme, setCoverTheme] = useState<ThemeOverride | null>(null);
   const onCover = (file: File | undefined) => {
