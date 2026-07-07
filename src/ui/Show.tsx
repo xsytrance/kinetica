@@ -3,6 +3,7 @@ import { useMusicPlayer } from "@/audio/player";
 import { KineticStage, clean } from "@/engine/KineticStage";
 import { WordFxPanel } from "./WordFxPanel";
 import type { TextEffect } from "@/lib/effects/registry";
+import type { ParticleMode } from "@/engine/KineticParticles";
 import { useRecorder } from "@/export/useRecorder";
 import { PRESETS } from "@/lib/presets";
 import type { Preset } from "@/lib/presets";
@@ -57,6 +58,13 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
       if (!fx) { const { [key]: _drop, ...rest } = o; return rest; }
       return { ...o, [key]: fx };
     });
+
+  // ── Director's deck: live weather override + intensity knobs ──
+  const [deckOpen, setDeckOpen] = useState(false);
+  const [particleOverride, setParticleOverride] = useState<ParticleMode | "">("");
+  const [deck, setDeck] = useState({ density: 1, glow: 0, grain: 0, vignette: 0 });
+  const setDeckVal = (k: keyof typeof deck, v: number) => setDeck((d) => ({ ...d, [k]: v }));
+  const PARTICLES: (ParticleMode | "")[] = ["", "dust", "embers", "ash", "rain", "snow", "bubbles", "sparks", "petals", "pollen"];
   // A dropped cover seeds the "auto" palette (extractPalette → 3 vivid swatches).
   const [coverTheme, setCoverTheme] = useState<ThemeOverride | null>(null);
   const onCover = (file: File | undefined) => {
@@ -98,42 +106,14 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
           <button onClick={onExit} className="rounded-full border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white/60 hover:text-white">
             ← New song
           </button>
-          <select
-            value={presetId} onChange={(e) => setPresetId(e.target.value)}
-            title="Visual style" aria-label="Visual style"
-            className="rounded-full border border-white/15 bg-black/50 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-white/70 outline-none"
-          >
-            {PRESETS.map((p) => <option key={p.id} value={p.id} className="bg-black text-white">✦ {p.label}</option>)}
-            {customPresets.length > 0 && (
-              <optgroup label="Your vibes">
-                {customPresets.map((p) => <option key={p.id} value={p.id} className="bg-black text-white">✎ {p.label}</option>)}
-              </optgroup>
-            )}
-          </select>
           <button
-            onClick={() => setBuilder({ initial: isCustom ? preset : undefined })}
-            title={isCustom ? "Edit this vibe" : "Create a custom vibe"} aria-label={isCustom ? "Edit vibe" : "New vibe"}
-            className="rounded-full border border-white/15 bg-black/50 px-3 py-2 font-mono text-[10px] text-white/70 hover:text-white"
+            onClick={() => setDeckOpen((v) => !v)}
+            title="Director's deck — vibe, weather, intensity, per-word FX" aria-label="Director's deck"
+            className={`rounded-full border px-4 py-2 font-mono text-[10px] uppercase tracking-wider transition ${deckOpen ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 bg-black/50 text-white/70 hover:text-white"}`}
           >
-            {isCustom ? "✎ Edit" : "＋ Vibe"}
+            ⚙ Director
           </button>
-          <label
-            title="Theme the show from a cover image"
-            className={`cursor-pointer rounded-full border px-3 py-2 font-mono text-[10px] transition ${coverTheme ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 bg-black/50 text-white/70 hover:text-white"}`}
-          >
-            {coverTheme ? "🎨 Cover ✓" : "🎨 Cover"}
-            <input type="file" accept="image/*" className="hidden" onChange={(e) => onCover(e.target.files?.[0])} />
-          </label>
-          {coverTheme && (
-            <button onClick={() => setCoverTheme(null)} title="Clear cover theme" className="rounded-full border border-white/15 bg-black/50 px-2 py-2 font-mono text-[10px] text-white/50 hover:text-white">✕</button>
-          )}
-          <button
-            onClick={() => setFxPanel((v) => !v)}
-            title="Pin text effects to specific words" aria-label="Per-word effects"
-            className={`rounded-full border px-3 py-2 font-mono text-[10px] transition ${fxPanel || Object.keys(overrides).length ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 bg-black/50 text-white/70 hover:text-white"}`}
-          >
-            ✦ FX{Object.keys(overrides).length ? ` · ${Object.keys(overrides).length}` : ""}
-          </button>
+          <span className="hidden font-mono text-[10px] text-white/40 sm:inline">✦ {preset.label}</span>
         </div>
         <div className="pointer-events-auto flex gap-1.5">
           {MODES.map((m) => (
@@ -167,12 +147,14 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
 
       <div className={`absolute inset-0 ${preset.stageClass ?? ""}`}>
         <KineticStage
-          track={track} pass={3} mode={mode} forceParticle={preset.particle}
+          track={track} pass={3} mode={mode}
+          forceParticle={particleOverride || preset.particle}
           // Bias word effects + surface to the preset; per-word overrides (from
           // the FX panel) always win over the vibe. Auto = no filter.
           effects={preset.effects || preset.surface || Object.keys(overrides).length
             ? { allow: preset.effects, surface: preset.surface, overrides }
             : undefined}
+          deck={deck}
         />
       </div>
 
@@ -192,6 +174,66 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
           )}
           <button onClick={() => setShowCredits((s) => !s)} className="pointer-events-auto rounded-full bg-black/40 px-3 py-1 font-mono text-[9px] uppercase tracking-wider text-white/40 hover:text-white/70">
             {attribution}{credits.length ? ` · ${showCredits ? "hide" : "credits"}` : ""}
+          </button>
+        </div>
+      )}
+
+      {deckOpen && (
+        <div className="pointer-events-auto absolute left-3 top-16 z-40 flex max-h-[80dvh] w-72 flex-col gap-3 overflow-y-auto rounded-2xl border border-white/12 bg-[#0b0810]/95 p-3 backdrop-blur">
+          <div className="flex items-center justify-between">
+            <h3 className="font-display text-sm font-black text-white">Director’s deck</h3>
+            <button onClick={() => setDeckOpen(false)} className="font-mono text-xs text-white/50 hover:text-white">✕</button>
+          </div>
+
+          {/* Vibe */}
+          <div>
+            <label className="block font-mono text-[10px] uppercase tracking-wider text-white/45">Vibe</label>
+            <div className="mt-1 flex gap-1.5">
+              <select value={presetId} onChange={(e) => setPresetId(e.target.value)} aria-label="Visual style" className="min-w-0 flex-1 rounded-lg border border-white/15 bg-black/60 px-2 py-1.5 font-mono text-[11px] text-white/80 outline-none">
+                {PRESETS.map((p) => <option key={p.id} value={p.id} className="bg-black">✦ {p.label}</option>)}
+                {customPresets.length > 0 && <optgroup label="Your vibes">{customPresets.map((p) => <option key={p.id} value={p.id} className="bg-black">✎ {p.label}</option>)}</optgroup>}
+              </select>
+              <button onClick={() => setBuilder({ initial: isCustom ? preset : undefined })} title={isCustom ? "Edit vibe" : "New vibe"} className="rounded-lg border border-white/15 px-2.5 py-1.5 font-mono text-[11px] text-white/70 hover:text-white">{isCustom ? "✎" : "＋"}</button>
+            </div>
+          </div>
+
+          {/* Cover + Weather */}
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-white/45">Cover theme</label>
+              <div className="mt-1 flex gap-1">
+                <label className={`flex-1 cursor-pointer rounded-lg border px-2 py-1.5 text-center font-mono text-[11px] ${coverTheme ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 text-white/70 hover:text-white"}`}>
+                  {coverTheme ? "🎨 ✓" : "🎨 set"}
+                  <input type="file" accept="image/*" className="hidden" onChange={(e) => onCover(e.target.files?.[0])} />
+                </label>
+                {coverTheme && <button onClick={() => setCoverTheme(null)} title="Clear cover theme" className="rounded-lg border border-white/15 px-2 font-mono text-[11px] text-white/50 hover:text-white">✕</button>}
+              </div>
+            </div>
+            <div>
+              <label className="block font-mono text-[10px] uppercase tracking-wider text-white/45">Weather</label>
+              <select value={particleOverride} onChange={(e) => setParticleOverride(e.target.value as ParticleMode | "")} aria-label="Weather override" className="mt-1 w-full rounded-lg border border-white/15 bg-black/60 px-2 py-1.5 font-mono text-[11px] text-white/80 outline-none">
+                {PARTICLES.map((p) => <option key={p || "auto"} value={p} className="bg-black">{p || "auto"}</option>)}
+              </select>
+            </div>
+          </div>
+
+          {/* Intensity sliders (perf-lite aware in the engine) */}
+          <div>
+            <label className="block font-mono text-[10px] uppercase tracking-wider text-white/45">Intensity</label>
+            <div className="mt-1.5 space-y-2">
+              {([["density", "Density", 0.2, 2, 0.05], ["glow", "Glow", 0, 1, 0.05], ["grain", "Grain", 0, 1, 0.05], ["vignette", "Vignette", 0, 1, 0.05]] as const).map(([key, lbl, min, max, step]) => (
+                <div key={key} className="flex items-center gap-2">
+                  <span className="w-14 font-mono text-[10px] text-white/55">{lbl}</span>
+                  <input type="range" min={min} max={max} step={step} value={deck[key]} onChange={(e) => setDeckVal(key, parseFloat(e.target.value))} aria-label={lbl} className="min-w-0 flex-1 accent-[var(--theme-secondary)]" />
+                  <span className="w-8 text-right font-mono text-[10px] text-white/40">{deck[key].toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Per-word FX opens its own panel (on the right) */}
+          <button onClick={() => setFxPanel((v) => !v)} className={`rounded-full border py-1.5 font-mono text-[10px] uppercase tracking-wider transition ${fxPanel || Object.keys(overrides).length ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 text-white/60 hover:text-white"}`}>
+            ✦ Per-word FX{Object.keys(overrides).length ? ` · ${Object.keys(overrides).length}` : ""}
           </button>
         </div>
       )}
