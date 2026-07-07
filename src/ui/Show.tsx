@@ -16,10 +16,11 @@ import { extractPalette } from "@/lib/palette";
 import type { Track } from "@/lib/types";
 import type { Credit } from "@/images/populate";
 
-type Mode = "phrase" | "focus" | "dynamic";
+type Mode = "phrase" | "focus" | "focus+" | "dynamic";
 const MODES: { id: Mode; label: string }[] = [
   { id: "phrase", label: "Phrase" },
   { id: "focus", label: "Focus" },
+  { id: "focus+", label: "Focus+" },
   { id: "dynamic", label: "Dynamic" },
 ];
 
