@@ -142,9 +142,73 @@ const artic: ImageSource = {
   },
 };
 
+// ── The Met — public-domain (CC0) fine art, NO KEY. CORS-enabled. ──
+// Two-step API: search returns objectIDs, then each object carries its image.
+// We cap the object fan-out so one keyword can't hammer the endpoint.
+const met: ImageSource = {
+  id: "met",
+  label: "The Met (fine art · no key)",
+  needsKey: false,
+  attribution: "Art via The Metropolitan Museum of Art (Open Access · CC0)",
+  async search(query, _key, opts) {
+    const p = new URLSearchParams({ q: query, hasImages: "true" });
+    const r = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/search?${p}`, { signal: opts?.signal });
+    if (!r.ok) throw new Error(`The Met ${r.status}`);
+    const ids: number[] = (await r.json()).objectIDs ?? [];
+    if (!ids.length) return [];
+    const objs = await Promise.all(ids.slice(0, 8).map(async (id) => {
+      try {
+        const or = await fetch(`https://collectionapi.metmuseum.org/public/collection/v1/objects/${id}`, { signal: opts?.signal });
+        return or.ok ? await or.json() : null;
+      } catch { return null; }
+    }));
+    return objs
+      .filter((o: any) => o?.isPublicDomain && o.primaryImageSmall)
+      .map((o: any): Photo => ({
+        url: o.primaryImage || o.primaryImageSmall, thumb: o.primaryImageSmall,
+        width: 0, height: 0,
+        author: o.artistDisplayName || o.culture || "The Met", authorUrl: o.objectURL || "",
+        sourceUrl: o.objectURL || "", source: "The Met", license: "Public Domain (CC0)",
+      }));
+  },
+};
+
+// ── NASA Image Library — public-domain space imagery, NO KEY. CORS-enabled. ──
+// (images-api.nasa.gov needs no key; the api.nasa.gov key is only for APOD etc.)
+const nasa: ImageSource = {
+  id: "nasa",
+  label: "NASA Images (space · no key)",
+  needsKey: false,
+  attribution: "Imagery courtesy NASA",
+  async search(query, _key, opts) {
+    const p = new URLSearchParams({ q: query, media_type: "image" });
+    const r = await fetch(`https://images-api.nasa.gov/search?${p}`, { signal: opts?.signal });
+    if (!r.ok) throw new Error(`NASA ${r.status}`);
+    const items = (await r.json()).collection?.items ?? [];
+    return items.slice(0, 12).map((it: any): Photo | null => {
+      const href = it.links?.[0]?.href;
+      const meta = it.data?.[0];
+      if (!href || !meta) return null;
+      // The search href points at a small rendition (~thumb/~small/~medium/~large);
+      // the same asset path serves a full-size ~orig for the backdrop.
+      const full = href.replace(/~(?:thumb|small|medium|large)\.(jpe?g|png)$/i, "~orig.$1");
+      const page = `https://images.nasa.gov/details/${meta.nasa_id}`;
+      return {
+        url: full, thumb: href, width: 0, height: 0,
+        author: meta.photographer || meta.center || "NASA", authorUrl: page,
+        sourceUrl: page, source: "NASA", license: "Public Domain",
+      };
+    }).filter((x: Photo | null): x is Photo => !!x);
+  },
+};
+
 // Keyless sources first (zero setup), then the free-key ones.
-export const IMAGE_SOURCES: ImageSource[] = [openverse, wikimedia, artic, pexels, unsplash, pixabay];
+export const IMAGE_SOURCES: ImageSource[] = [openverse, wikimedia, artic, met, nasa, pexels, unsplash, pixabay];
 export const getSource = (id: string) => IMAGE_SOURCES.find((s) => s.id === id) ?? openverse;
+
+/** The no-key sources, in fallback order — the "never blank" safety net that
+ *  fills any keyword the chosen source leaves without a backdrop. */
+export const KEYLESS_SOURCES: ImageSource[] = IMAGE_SOURCES.filter((s) => !s.needsKey);
 
 /** Unsplash's "trigger a download" endpoint — called when we adopt a photo. */
 export async function pingDownload(photo: Photo, key?: string) {

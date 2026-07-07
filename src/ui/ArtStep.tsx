@@ -106,7 +106,7 @@ export function ArtStep({ track, duration, onDone }: {
         setWorking((w) => withPhotos(w, res.keywords));
         setPreviews(Object.values(res.keywords).slice(0, 8));
         setResult({ credits: res.credits, attribution: res.attribution });
-        setMsg(`Placed ${Object.keys(res.keywords).length} photo backdrops ✓`);
+        setMsg(`Placed ${Object.keys(res.keywords).length} photo backdrops ✓${res.warning ? ` — ${res.warning}` : ""}`);
       }
     } catch (e) { setMsg(e instanceof Error ? e.message : String(e)); }
     setBusy(false);
