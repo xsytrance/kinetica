@@ -98,7 +98,14 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
       )}
 
       <div className={`absolute inset-0 ${preset.stageClass ?? ""}`}>
-        <KineticStage track={track} pass={3} mode={mode} forceParticle={preset.particle} />
+        <KineticStage
+          track={track} pass={3} mode={mode} forceParticle={preset.particle}
+          // Bias the word effects to the preset's palette (keeps any per-word
+          // overrides the planet already carries). Auto = no filter.
+          effects={preset.effects || track.planet?.effects?.overrides
+            ? { allow: preset.effects, overrides: track.planet?.effects?.overrides }
+            : undefined}
+        />
       </div>
 
       {/* Photo attribution — free-photo APIs require crediting the creators. */}
