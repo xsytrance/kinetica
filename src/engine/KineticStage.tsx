@@ -55,6 +55,12 @@ const RISE_WORDS = new Set(["rise", "rises", "rising", "soar", "soars", "soaring
 const FALL_WORDS = new Set(["fall", "falls", "falling", "fell", "sink", "sinks", "sinking", "sank", "plunge", "tumble", "collapse", "descend", "gravity", "drown", "drowning"]);  // → fall
 const ECHO_WORDS = new Set(["echo", "echoes", "echoing", "echoed", "repeat", "repeats", "again", "distant", "reverb", "resound", "lingers", "lingering"]);               // → echo
 const TREMOR_WORDS = new Set(["tremble", "trembles", "trembling", "tremor", "fear", "afraid", "scared", "nervous", "anxious", "panic", "quake", "quakes", "earthquake", "rattle", "rattles", "quiver", "quivers", "shudder", "terror"]);  // → tremor
+const REDACT_WORDS = new Set(["lie", "lies", "lied", "liar", "liars", "hidden", "hide", "hides", "hiding", "classified", "censored", "redacted", "confidential", "forbidden", "conceal", "concealed", "undercover", "encrypted", "incognito", "anonymous", "disguise", "disguised"]);  // → redact
+const CHROMA_WORDS = new Set(["dream", "dreams", "dreaming", "dreamed", "dreamt", "nostalgia", "nostalgic", "analog", "vhs", "rewind", "retro", "vintage", "polaroid", "cassette", "flashback", "flashbacks", "déjà", "deja", "haze", "hazy", "blurry"]);  // → chromatic
+const LIQUID_WORDS = new Set(["tears", "cry", "cries", "crying", "cried", "weep", "weeping", "wept", "flood", "floods", "flooded", "soak", "soaked", "soaking", "spill", "spills", "spilled", "pour", "pours", "pouring", "overflow", "overflowing", "lágrimas", "llorar", "lloro"]);  // → liquid
+const BLEED_WORDS = new Set(["blood", "bloody", "bleed", "bleeds", "bleeding", "bled", "wound", "wounds", "wounded", "scar", "scars", "scarred", "vein", "veins", "bruise", "bruised", "bruises", "hurt", "hurts", "hurting", "pain", "pains", "ache", "aches", "aching", "sangre", "herida"]);  // → bleed
+const HANDWRITE_WORDS = new Set(["write", "writes", "writing", "written", "wrote", "letter", "letters", "vow", "vows", "promise", "promises", "promised", "sign", "signed", "signature", "ink", "pen", "poem", "poems", "poetry", "diary", "journal"]);  // → handwrite
+const TVOFF_WORDS = new Set(["end", "ends", "ended", "ending", "goodbye", "goodbyes", "farewell", "adios", "adiós", "dead", "death", "die", "dies", "died", "dying"]);  // → tvoff
 // normalize for lookup: lowercase, strip possessive ('s / ’s)
 const effectKey = (w: string) => w.toLowerCase().replace(/[’']s$/, "");
 
@@ -205,6 +211,12 @@ const WORD_FX: Record<TextEffect, (word: string, airtime: number) => ReactNode> 
   fall: (w, a) => <WordFall word={w} airtime={a} />,
   echo: (w, a) => <WordEcho word={w} airtime={a} />,
   tremor: (w, a) => <WordTremor word={w} airtime={a} />,
+  redact: (w, a) => <WordRedact word={w} airtime={a} />,
+  chromatic: (w, a) => <WordChromatic word={w} airtime={a} />,
+  liquid: (w, a) => <WordLiquid word={w} airtime={a} />,
+  bleed: (w, a) => <WordBleed word={w} airtime={a} />,
+  handwrite: (w) => <WordHandwrite word={w} />,
+  tvoff: (w, a) => <WordTVOff word={w} airtime={a} />,
 };
 
 export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pass = 3, mode = "phrase", forceParticle, clock, effects, deck }: {
@@ -1085,7 +1097,7 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [words, sections, art, sectionArt, getCurrentTime, pass, mode, lineStarts, keywordEmotion, allMoments, pickArt, spawnRing, stems, stutterRuns]);
+  }, [words, sections, art, sectionArt, getCurrentTime, pass, mode, lineStarts, keywordEmotion, allMoments, pickArt, pooledArt, spawnRing, stems, stutterRuns]);
 
   const word = idx >= 0 ? words[idx]?.w : undefined;
   const shown = word ? clean(word) : "";
@@ -1114,8 +1126,9 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
   const types = !priorEffect && !fizzes && airtime >= 0.45 && TYPE_WORDS.has(ek);
   // Newer treatments auto-fire on their own vocabulary, at the lowest priority —
   // only when no signature effect above claimed the word (a per-word override
-  // still trumps this in resolveWordEffect). Gives freeze/melt/carve/shimmer/
-  // rise/fall/echo/tremor a life beyond the FX panel. PHASE 4: this whole
+  // still trumps this in resolveWordEffect). Gives the whole post-signature
+  // family (freeze…tremor, redact…bleed, handwrite/tvoff) a life beyond the FX
+  // panel. PHASE 4: this whole
   // family is the "Kinetica upgrade" pass, so it's gated behind pass >= 4 —
   // passes 1-3 stay exactly as they were before it.
   const extraFx: TextEffect | null = (pass >= 4 && !priorEffect && !fizzes && !types && airtime >= 0.5)
@@ -1127,6 +1140,12 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
       : FALL_WORDS.has(ek) ? "fall"
       : ECHO_WORDS.has(ek) ? "echo"
       : TREMOR_WORDS.has(ek) ? "tremor"
+      : REDACT_WORDS.has(ek) ? "redact"
+      : CHROMA_WORDS.has(ek) ? "chromatic"
+      : LIQUID_WORDS.has(ek) ? "liquid"
+      : BLEED_WORDS.has(ek) ? "bleed"
+      : HANDWRITE_WORDS.has(ek) ? "handwrite"
+      : TVOFF_WORDS.has(ek) ? "tvoff"
       : null)
     : null;
   const glyph = !priorEffect && !fizzes && !types && !extraFx && shown && airtime >= 0.6
@@ -1206,7 +1225,7 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
       to = setTimeout(() => { setTouchBurn(idx); navigator.vibrate?.(20); }, 430);
     }
     return () => { ro.disconnect(); if (to) clearTimeout(to); };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [idx, dynamic]);
   // Residues center themselves the same way: measured negative margins.
   useLayoutEffect(() => {
@@ -1242,7 +1261,7 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
           >
             {/* parallax shell — rides the device tilt / mouse via CSS vars */}
             <div className="h-full w-full" style={{ transform: "translate3d(calc(var(--par-x, 0px) + var(--cam-x, 0px) * 1.4), calc(var(--par-y, 0px) + var(--cam-y, 0px) * 1.4), 0) rotate(var(--cam-rot, 0deg)) scale(calc(1.05 * var(--cam-scale, 1)))", willChange: "transform" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
+              { }
               <motion.img
                 src={bgArt}
                 alt=""
@@ -2408,7 +2427,7 @@ function WordShimmer({ word, airtime }: { word: string; airtime: number }) {
         backgroundImage: "linear-gradient(100deg, #b8860b 0%, #ffe9a8 42%, #fffbe6 50%, #ffe9a8 58%, #b8860b 100%)",
         backgroundSize: "300% 100%",
         WebkitBackgroundClip: "text",
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+         
       } as any}
       initial={{ backgroundPositionX: "120%" }}
       animate={{ backgroundPositionX: ["120%", "-20%", "120%", "50%"], textShadow: ["0 0 0.2em rgba(255,220,140,0.0)", "0 0 0.35em rgba(255,220,140,0.55)", "0 0 0.2em rgba(255,220,140,0.2)", "0 0 0.25em rgba(255,220,140,0.35)"] }}
@@ -2510,6 +2529,161 @@ function WordTremor({ word, airtime }: { word: string; airtime: number }) {
     >
       {word}
     </motion.span>
+  );
+}
+
+/* ========== REDACT ==========
+   Secret words get censored: the word lands readable, then a black bar slams
+   across it left-to-right and it stays struck out — classified. */
+function WordRedact({ word, airtime }: { word: string; airtime: number }) {
+  const dur = Math.min(1.8, Math.max(0.9, airtime));
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <motion.span className="inline-block" initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 1, 1, 0.4] }} transition={{ duration: dur, times: [0, 0.2, 0.45, 0.7] }}>
+        {word}
+      </motion.span>
+      <motion.span
+        className="pointer-events-none absolute -inset-x-[0.1em] inset-y-[0.08em] origin-left rounded-[0.06em]"
+        style={{ background: "#0b0b0e", boxShadow: "0 0 0.1em rgba(0,0,0,0.85), inset 0 0 0.06em rgba(255,255,255,0.1)" }}
+        initial={{ scaleX: 0, opacity: 0 }}
+        animate={{ scaleX: [0, 0, 1, 1], opacity: [0, 0, 1, 0.94] }}
+        transition={{ duration: dur, times: [0, 0.45, 0.62, 1], ease: [0.7, 0, 0.2, 1] }}
+        aria-hidden
+      />
+    </span>
+  );
+}
+
+/* ========== CHROMATIC ==========
+   Analog-memory words split into red/cyan ghosts that jitter apart like a
+   worn VHS tape, then lock back into register. */
+function WordChromatic({ word, airtime }: { word: string; airtime: number }) {
+  const dur = Math.min(1.6, Math.max(0.9, airtime));
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <motion.span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden
+        style={{ color: "#ff3b52", mixBlendMode: "screen" }}
+        initial={{ x: "-0.07em", y: "0.01em", opacity: 0.85 }}
+        animate={{ x: ["-0.07em", "0.05em", "-0.035em", "0.015em", "0em"], y: ["0.01em", "-0.02em", "0.012em", "0em", "0em"], opacity: [0.85, 0.75, 0.6, 0.4, 0] }}
+        transition={{ duration: dur, times: [0, 0.3, 0.55, 0.8, 1], ease: "easeOut" }}>
+        {word}
+      </motion.span>
+      <motion.span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden
+        style={{ color: "#2ee6ff", mixBlendMode: "screen" }}
+        initial={{ x: "0.07em", y: "-0.01em", opacity: 0.85 }}
+        animate={{ x: ["0.07em", "-0.05em", "0.035em", "-0.015em", "0em"], y: ["-0.01em", "0.02em", "-0.012em", "0em", "0em"], opacity: [0.85, 0.75, 0.6, 0.4, 0] }}
+        transition={{ duration: dur, times: [0, 0.3, 0.55, 0.8, 1], ease: "easeOut" }}>
+        {word}
+      </motion.span>
+      <motion.span className="inline-block" initial={{ opacity: 0.55 }} animate={{ opacity: 1 }} transition={{ duration: dur * 0.6 }}>
+        {word}
+      </motion.span>
+    </span>
+  );
+}
+
+/* ========== LIQUID ==========
+   Water rises inside the letterforms: the word stands as an empty vessel and
+   fills bottom-up with a sea gradient, wobbling as the level climbs. */
+function WordLiquid({ word, airtime }: { word: string; airtime: number }) {
+  const dur = Math.min(2.2, Math.max(1.2, airtime));
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <span className="inline-block opacity-30">{word}</span>
+      <motion.span
+        className="pointer-events-none absolute inset-0 flex items-center justify-center bg-clip-text"
+        style={{
+          color: "transparent",
+          backgroundImage: "linear-gradient(to top, #0b5f8a 0%, #2fa3d8 55%, #9fe0ff 100%)",
+          WebkitBackgroundClip: "text",
+        }}
+        initial={{ clipPath: "inset(100% 0 0 0)" }}
+        animate={{ clipPath: ["inset(100% 0 0 0)", "inset(58% 0 0 0)", "inset(66% 0 0 0)", "inset(30% 0 0 0)", "inset(38% 0 0 0)", "inset(0 0 0 0)"] }}
+        transition={{ duration: dur, times: [0, 0.3, 0.42, 0.62, 0.72, 1], ease: "easeInOut" }}
+        aria-hidden
+      >
+        {word}
+      </motion.span>
+    </span>
+  );
+}
+
+/* ========== BLEED ==========
+   Wounded words weep: a deep-red copy soaks through the word while thin drips
+   run down from under the letters. The base word keeps the theme color. */
+function WordBleed({ word, airtime }: { word: string; airtime: number }) {
+  const dur = Math.min(2.0, Math.max(1.0, airtime));
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <span className="inline-block">{word}</span>
+      <motion.span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden
+        style={{ color: "#a11620" }}
+        initial={{ opacity: 0, y: "0em" }}
+        animate={{ opacity: [0, 0.85, 0.92], y: ["0em", "0.008em", "0.014em"], textShadow: ["0 0 0em rgba(190,25,35,0)", "0 0 0.28em rgba(200,30,40,0.55)", "0 0 0.2em rgba(160,20,30,0.45)"] }}
+        transition={{ duration: dur * 0.75, times: [0, 0.55, 1], ease: "easeIn" }}>
+        {word}
+      </motion.span>
+      {[0.24, 0.55, 0.78].map((p, n) => (
+        <motion.span key={n} className="pointer-events-none absolute top-[76%] w-[0.045em] origin-top rounded-b-full" aria-hidden
+          style={{ left: `${p * 100}%`, height: `${0.4 + n * 0.14}em`, background: "linear-gradient(to bottom, #a11620, #5c0e12)" }}
+          initial={{ scaleY: 0, opacity: 0 }}
+          animate={{ scaleY: [0, 0.45 + n * 0.2, 1], opacity: [0, 0.85, 0.7] }}
+          transition={{ duration: dur * 0.9, times: [0, 0.5, 1], delay: 0.3 + n * 0.16, ease: "easeIn" }} />
+      ))}
+    </span>
+  );
+}
+
+/* ========== HANDWRITE ==========
+   Vow words write themselves on in script, revealed left-to-right behind a
+   glowing pen-point that rides the ink edge. Duration scales with length —
+   long promises take longer to sign. */
+function WordHandwrite({ word }: { word: string }) {
+  const dur = Math.min(1.6, Math.max(0.6, word.length * 0.09));
+  return (
+    <span className="relative inline-flex items-center justify-center"
+      style={{ fontFamily: '"Segoe Script", "Brush Script MT", "Snell Roundhand", cursive' }}>
+      <motion.span className="inline-block"
+        initial={{ clipPath: "inset(-20% 100% -20% 0)" }}
+        animate={{ clipPath: "inset(-20% -5% -20% 0)" }}
+        transition={{ duration: dur, ease: "linear" }}>
+        {word}
+      </motion.span>
+      <motion.span className="pointer-events-none absolute top-1/2 h-[0.08em] w-[0.08em] -translate-y-1/2 rounded-full" aria-hidden
+        style={{ background: "currentColor", boxShadow: "0 0 0.35em currentColor" }}
+        initial={{ left: "0%", opacity: 0.9 }}
+        animate={{ left: "102%", opacity: [0.9, 0.9, 0] }}
+        transition={{ duration: dur, ease: "linear", times: [0, 0.92, 1] }} />
+    </span>
+  );
+}
+
+/* ========== TV-OFF ==========
+   Final words switch off like an old CRT: flash on from a scanline, hold,
+   then collapse back to a bright line, then to a dot that dies out. */
+function WordTVOff({ word, airtime }: { word: string; airtime: number }) {
+  const dur = Math.min(2.2, Math.max(1.1, airtime));
+  return (
+    <span className="relative inline-flex items-center justify-center">
+      <motion.span className="inline-block"
+        initial={{ scaleY: 0.03, scaleX: 1.08, opacity: 0 }}
+        animate={{
+          scaleY: [0.03, 1, 1, 1, 0.02, 0.02],
+          scaleX: [1.08, 1, 1, 1, 1, 0.03],
+          opacity: [0.8, 1, 1, 1, 1, 0],
+          filter: ["brightness(3)", "brightness(1)", "brightness(1)", "brightness(1)", "brightness(4)", "brightness(6)"],
+        }}
+        transition={{ duration: dur, times: [0, 0.12, 0.5, 0.74, 0.84, 1], ease: "easeInOut" }}>
+        {word}
+      </motion.span>
+      {/* the dying phosphor dot */}
+      <motion.span className="pointer-events-none absolute h-[0.07em] w-[0.07em] rounded-full bg-white" aria-hidden
+        style={{ boxShadow: "0 0 0.3em rgba(255,255,255,0.9)" }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: [0, 0, 0.95, 0] }}
+        transition={{ duration: dur, times: [0, 0.86, 0.93, 1] }} />
+    </span>
   );
 }
 
