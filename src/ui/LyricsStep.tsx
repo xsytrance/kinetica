@@ -207,17 +207,35 @@ export function LyricsStep({ stems, masterUrl, title, onReady }: {
         )}
         {busy && <div className="h-7 w-7 animate-spin rounded-full border-2 border-white/20 border-t-[var(--theme-primary)]" />}
         {msg && <p className="max-w-md text-center font-mono text-[11px] leading-relaxed text-white/55">{msg}</p>}
+        {!busy && hasText && !isLrc && (
+          <button onClick={() => setSyncing(true)} className="pt-1 font-mono text-[11px] text-white/45 underline-offset-2 transition hover:text-white hover:underline">
+            👆 tap to sync by hand instead
+          </button>
+        )}
+
+        {/* Featured alternative — no lyrics at all */}
         {!busy && (
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 pt-1">
-            {hasText && !isLrc && (
-              <button onClick={() => setSyncing(true)} className="font-mono text-[11px] text-white/45 underline-offset-2 transition hover:text-white hover:underline">
-                👆 tap to sync by hand instead
-              </button>
-            )}
-            <button onClick={runAuto} className="font-mono text-[11px] text-white/45 underline-offset-2 transition hover:text-white hover:underline">
-              🎙 no lyrics handy? transcribe for me
+          <>
+            <div className="flex w-full items-center gap-3 pt-2">
+              <span className="h-px flex-1 bg-white/10" />
+              <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-white/30">or</span>
+              <span className="h-px flex-1 bg-white/10" />
+            </div>
+            <button
+              onClick={runAuto}
+              className="group flex w-full items-center gap-4 rounded-2xl border px-5 py-4 text-left transition hover:scale-[1.01]"
+              style={{ borderColor: "color-mix(in srgb, var(--theme-secondary) 40%, transparent)", background: "color-mix(in srgb, var(--theme-secondary) 7%, transparent)" }}
+            >
+              <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full text-xl" style={{ background: "color-mix(in srgb, var(--theme-secondary) 20%, transparent)" }}>🎙</span>
+              <span className="min-w-0">
+                <span className="block font-display text-base font-black text-white">No lyrics handy? We&apos;ll listen.</span>
+                <span className="block font-mono text-[10px] leading-relaxed text-white/50">
+                  Kinetica transcribes the song from your vocal stem — on-device, one click, done.
+                </span>
+              </span>
+              <span className="ml-auto shrink-0 font-mono text-xs uppercase tracking-wider transition group-hover:translate-x-0.5" style={{ color: "var(--theme-secondary)" }}>Go →</span>
             </button>
-          </div>
+          </>
         )}
         <p className="pt-2 text-center font-mono text-[9px] leading-relaxed text-white/25">
           First auto-sync downloads a small speech model (~40MB) once, then it&apos;s cached. Audio never leaves your device.
