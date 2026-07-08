@@ -98,7 +98,8 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
   // Per-song "look": each song opens with a distinctive seeded vibe/weather/
   // intensity (so no two songs look the same) — 🎲 Surprise re-rolls it.
   const [salt, setSalt] = useState(0);
-  const look = useMemo(() => songLook(track.title || "", track.lyrics || "", salt), [track, salt]);
+  // The style prompt (track.mood) joins the hash text so it steers the look.
+  const look = useMemo(() => songLook(track.title || "", `${track.lyrics || ""} ${track.mood || ""}`, salt), [track, salt]);
   useEffect(() => {
     setPresetId(look.presetId);
     setParticleOverride(look.particle);

@@ -48,10 +48,13 @@ export function App() {
     }
   }, []);
 
-  const onLyricsReady = useCallback((words: SyncedWord[], lyricsLrc: string, title: string) => {
+  const onLyricsReady = useCallback((words: SyncedWord[], lyricsLrc: string, title: string, style?: string) => {
     const p = prepared.current; if (!p) return;
     const t = buildTrack({ title, lyricsLrc, words, stemData: p.stemData });
     t.audioUrl = p.masterUrl;
+    // The style prompt becomes the track's mood — ArtStep's vibe suffix and the
+    // per-song look generator both feed on it.
+    if (style) t.mood = style;
     setTrack(t);
     setStep("art");
   }, []);

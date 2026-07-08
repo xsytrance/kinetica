@@ -26,7 +26,10 @@ export function DropZone({ onFile, onDemo, error }: { onFile: (f: File) => void;
           Kinetica
         </h1>
         <p className="mt-3 max-w-xl font-mono text-xs uppercase tracking-[0.25em] text-white/50 sm:text-sm">
-          Drop your Suno stem zip → get a cinematic, interactive lyric video
+          Drop your stem zip → get a cinematic, interactive lyric video
+        </p>
+        <p className="mt-2 max-w-xl font-mono text-[10px] tracking-wide text-white/30">
+          works great with stems from Suno &amp; other AI music tools — an independent project, not affiliated with any of them
         </p>
       </div>
 
