@@ -8,6 +8,38 @@ theme,palette,perf,stemSense,shapes,lyrics,beatClock}`, `src/data/lexicon.json`)
 
 ---
 
+## 2026-07-13 (later) — Demo-worthy: dynamic by default, transport, coach, the Suno letter
+
+Owner's punch list after seeing the live demo on a phone: cropped header,
+phrase mode rendering a full-page wall, missing transport, nothing explains
+itself, and the landing needed his voice.
+
+- **Phrase-wall fixed in the ENGINE** (authored in x1c7, synced here): line
+  grouping matched LRC stamps to word times *exactly*, which The Alignment's
+  measured timings broke — whole songs became one "phrase". Stamps now land
+  on the nearest word onset (±0.6s); songs with no usable stamps segment on
+  breath gaps. Also picked up the frozen-show decode-gate fix in the sync.
+- **Show chrome rebuilt**: DYNAMIC is the default view; top bar wraps (no
+  more cropped chips) with icon-only exit/director on phones; new bottom
+  transport — ⏮ ▶/❚❚ ⏭ · ? · ● Rec. In the demo, ⏭ summons another random
+  catalog song (`N` key), ⏮ restarts/walks history. "Now performing" marquee
+  announces each pick.
+- **Everything explains itself**: every control carries a `data-hint` hover/
+  focus tooltip (pointer devices); the ? coach panel covers touch — and
+  auto-opens once on a first demo visit ("This stage is yours").
+- **Landing rebuilt in the owner's voice**: aurora title, equalizer strip,
+  4-step "what happens next", the Suno letter ("not affiliated — but Suno
+  changed my life; this engine is my thank-you letter"), the only-the-
+  beginning teaser, and a "Go grab your stems on Suno" CTA with the Pro
+  heads-up.
+
+**Verified** headless at 390×844 (mobile) + 1440×900: no horizontal
+overflow, dynamic default, phrase = one sentence (both LRC-mapped and
+gap-fallback songs), next/prev navigate, tooltip renders, coach auto-opens
+once, zero page errors.
+
+---
+
 ## 2026-07-13 — The demo becomes real: a random catalog song, front and center
 
 The landing page's demo was a tiny ghost-text link to a 20-second synthesized

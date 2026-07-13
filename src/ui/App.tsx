@@ -64,11 +64,17 @@ export function App() {
     setTrack(t); setCredits(cr); setAttribution(attr); setStep("show");
   }, []);
 
+  // Demo history — ⏭ summons a fresh random planet, ⏮ walks back through
+  // the ones you've already met.
+  const demoHistory = useRef<Track[]>([]);
+  const isDemo = !!track?.id.startsWith("catalog-");
+
   const onDemo = useCallback(async () => {
     setError(null); setStep("processing"); setProgress("Calling the mothership…");
     // The real demo: a random word-timed planet from the x1c7.com catalog.
     try {
       const t = await fetchRandomCatalogSong(setProgress);
+      demoHistory.current = [];
       setTrack(t); setCredits([]); setAttribution(""); setStep("show");
       return;
     } catch {
@@ -85,6 +91,22 @@ export function App() {
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e)); setStep("drop");
     }
+  }, []);
+
+  const nextSong = useCallback(async () => {
+    setStep("processing"); setProgress("Summoning another planet…");
+    try {
+      const cur = track;
+      const t = await fetchRandomCatalogSong(setProgress, cur?.id.replace(/^catalog-/, ""));
+      if (cur) demoHistory.current.push(cur);
+      setTrack(t);
+    } catch { /* stay on the current song */ }
+    setStep("show");
+  }, [track]);
+
+  const prevSong = useCallback(() => {
+    const p = demoHistory.current.pop();
+    if (p) setTrack(p);
   }, []);
 
   return (
@@ -105,7 +127,15 @@ export function App() {
         />
       )}
       {step === "art" && track && <ArtStep track={track} duration={prepared.current?.stemData.duration ?? 0} onDone={onArtDone} />}
-      {step === "show" && track && <Show track={track} credits={credits} attribution={attribution} onExit={() => setStep("drop")} />}
+      {step === "show" && track && (
+        <Show
+          track={track} credits={credits} attribution={attribution}
+          onExit={() => setStep("drop")}
+          onNextSong={isDemo ? nextSong : undefined}
+          onPrevSong={isDemo ? prevSong : undefined}
+          demoTitle={isDemo ? track.title : undefined}
+        />
+      )}
     </div>
   );
 }

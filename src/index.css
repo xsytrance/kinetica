@@ -105,6 +105,52 @@ body::before {
   100% { transform: translateY(-46vh) translateX(2vw); opacity: 0; }
 }
 .glow-text { text-shadow: 0 0 40px rgba(67, 247, 255, 0.4), 0 0 80px rgba(67, 247, 255, 0.2); }
+
+/* ── Landing & demo chrome ────────────────────────────────────────────────── */
+/* The title wears the theme like a slow aurora. */
+.title-aurora {
+  background: linear-gradient(90deg, var(--theme-primary), var(--theme-secondary), var(--theme-accent), var(--theme-primary));
+  background-size: 300% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: aurora-slide 9s linear infinite;
+  filter: drop-shadow(0 0 26px color-mix(in srgb, var(--theme-primary) 45%, transparent));
+}
+@keyframes aurora-slide { to { background-position: 300% 0; } }
+
+/* A little equalizer that never stops feeling the music. */
+.eq { display: flex; align-items: flex-end; gap: 3px; height: 30px; }
+.eq i {
+  width: 4px; border-radius: 2px; transform-origin: bottom;
+  background: linear-gradient(to top, var(--theme-primary), var(--theme-secondary));
+  animation: eq-bounce 1s ease-in-out infinite; opacity: 0.9;
+}
+@keyframes eq-bounce { 0%, 100% { transform: scaleY(0.22); } 50% { transform: scaleY(1); } }
+@media (prefers-reduced-motion: reduce) { .eq i { animation: none; transform: scaleY(0.5); } }
+
+/* Hover/focus hints — every control explains itself on pointer devices.
+   (Touch users get the same words in the ? coach panel.) */
+@media (hover: hover) and (pointer: fine) {
+  [data-hint] { position: relative; }
+  [data-hint]:hover::after, [data-hint]:focus-visible::after {
+    content: attr(data-hint);
+    position: absolute; top: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    z-index: 70; white-space: nowrap; pointer-events: none;
+    font: 600 10px/1.4 var(--font-mono), monospace; letter-spacing: 0.08em; text-transform: uppercase;
+    color: #fff; background: rgba(5, 3, 11, 0.94);
+    border: 1px solid color-mix(in srgb, var(--theme-secondary) 40%, transparent);
+    border-radius: 8px; padding: 6px 10px;
+    box-shadow: 0 0 18px color-mix(in srgb, var(--theme-secondary) 25%, transparent);
+    animation: hint-in 0.14s ease-out;
+  }
+  [data-hint-pos="up"]:hover::after, [data-hint-pos="up"]:focus-visible::after {
+    top: auto; bottom: calc(100% + 8px);
+  }
+}
+@keyframes hint-in { from { opacity: 0; translate: 0 2px; } to { opacity: 1; } }
+
+/* The demo's "now performing" marquee settles into the corner of your eye. */
+.now-performing { animation: now-performing-settle 7s ease forwards; }
+@keyframes now-performing-settle { 0%, 60% { opacity: 1; } 100% { opacity: 0.4; } }
 .kinetic-charging { animation: kinetic-charge 0.9s ease-in forwards; }
 @keyframes kinetic-charge {
   0% { filter: drop-shadow(0 0 8px var(--theme-accent)); }

@@ -17,11 +17,11 @@ import type { Track } from "@/lib/types";
 import type { Credit } from "@/images/populate";
 
 type Mode = "phrase" | "focus" | "focus+" | "dynamic";
-const MODES: { id: Mode; label: string }[] = [
-  { id: "phrase", label: "Phrase" },
-  { id: "focus", label: "Focus" },
-  { id: "focus+", label: "Focus+" },
-  { id: "dynamic", label: "Dynamic" },
+const MODES: { id: Mode; label: string; hint: string }[] = [
+  { id: "phrase", label: "Phrase", hint: "One sentence at a time, igniting word by word" },
+  { id: "focus", label: "Focus", hint: "One clean word, center stage" },
+  { id: "focus+", label: "Focus+", hint: "Focus, plus an effect as each word exits" },
+  { id: "dynamic", label: "Dynamic", hint: "The full stagecraft — the director's cut" },
 ];
 
 // ── Frame: the show's canvas shape (Phase 2.4 — vertical/social mode). ──────
@@ -40,11 +40,18 @@ const FRAME_SIZE: Record<Exclude<Frame, "wide">, CSSProperties> = {
   square: { width: "min(100vw, 100dvh)", aspectRatio: "1 / 1" },
 };
 
-export function Show({ track, onExit, credits = [], attribution = "" }: {
-  track: Track; onExit: () => void; credits?: Credit[]; attribution?: string;
+export function Show({ track, onExit, onNextSong, onPrevSong, demoTitle, credits = [], attribution = "" }: {
+  track: Track; onExit: () => void;
+  /** Demo transport: jump to another random catalog song. */
+  onNextSong?: () => void;
+  /** Demo transport: back to the previous song (⏮ restarts first). */
+  onPrevSong?: () => void;
+  /** Set when this is a catalog demo — shows the "now performing" marquee. */
+  demoTitle?: string;
+  credits?: Credit[]; attribution?: string;
 }) {
   const player = useMusicPlayer();
-  const [mode, setMode] = useState<Mode>("phrase");
+  const [mode, setMode] = useState<Mode>("dynamic");
   const [playing, setPlaying] = useState(true);
   const [showCredits, setShowCredits] = useState(false);
   const recIo = useMemo(() => ({ getAudioStream: player.getAudioStream, seek: player.seek, play: player.play, duration: player.duration }), [player]);
@@ -142,6 +149,21 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
   }, [track]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = () => { player.toggle(); setPlaying((p) => !p); };
+  // ⏮ behaves like every player since the CD: restart first, previous on a
+  // quick second tap (or when the song just started).
+  const prev = () => {
+    if (!onPrevSong || player.getCurrentTime() > 4) { player.seek(0); return; }
+    onPrevSong();
+  };
+
+  // First demo visit: open the coach once, so newcomers know what the toys do.
+  useEffect(() => {
+    if (demoTitle && !localStorage.getItem("kinetica-coach-seen")) {
+      localStorage.setItem("kinetica-coach-seen", "1");
+      const t = setTimeout(() => setLegend(true), 2500);
+      return () => clearTimeout(t);
+    }
+  }, [demoTitle]);
 
   // Keyboard shortcuts (ignored while typing in a field). Surfaced in the legend.
   const cyclePreset = (dir: 1 | -1) => {
@@ -158,7 +180,10 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
       if (e.key === " ") { e.preventDefault(); toggle(); }
       else if (k === "1") setMode("phrase");
       else if (k === "2") setMode("focus");
-      else if (k === "3") setMode("dynamic");
+      else if (k === "3") setMode("focus+");
+      else if (k === "4") setMode("dynamic");
+      else if (k === "n" && onNextSong) onNextSong();
+      else if (k === "p" && onPrevSong) prev();
       else if (k === "d") setDeckOpen((v) => !v);
       else if (k === "f") setFxPanel((v) => !v);
       else if (k === "v") setFrame((cur) => FRAMES[(FRAMES.findIndex((f) => f.id === cur) + 1) % FRAMES.length].id);
@@ -172,38 +197,69 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
 
   return (
     <div className="fixed inset-0 flex h-[100dvh] w-full flex-col overflow-hidden">
-      {/* controls */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-center justify-between p-4">
-        <div className="pointer-events-auto flex items-center gap-2">
-          <button onClick={onExit} className="rounded-full border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white/60 hover:text-white">
-            ← New song
+      {/* Top chrome: exit + director on the left, the four viewing styles on
+          the right. Wraps instead of cropping on narrow screens; transport
+          lives in its own bar at the bottom. */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-30 flex items-start justify-between gap-2 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] sm:p-4">
+        <div className="pointer-events-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <button onClick={onExit} data-hint="Leave the show — back to the start"
+            className="rounded-full border border-white/15 bg-black/40 px-3 py-2 font-mono text-[10px] uppercase tracking-wider text-white/60 backdrop-blur-sm transition hover:text-white sm:px-4">
+            <span className="sm:hidden">←</span><span className="hidden sm:inline">← Exit</span>
           </button>
           <button
             onClick={() => setDeckOpen((v) => !v)}
-            title="Director's deck — vibe, weather, intensity, per-word FX" aria-label="Director's deck"
-            className={`rounded-full border px-4 py-2 font-mono text-[10px] uppercase tracking-wider transition ${deckOpen ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 bg-black/50 text-white/70 hover:text-white"}`}
+            data-hint="The director's deck — vibe, weather, frame, intensity" aria-label="Director's deck"
+            className={`rounded-full border px-3 py-2 font-mono text-[10px] uppercase tracking-wider backdrop-blur-sm transition sm:px-4 ${deckOpen ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 bg-black/40 text-white/70 hover:text-white"}`}
           >
-            ⚙ Director
+            ⚙<span className="hidden sm:inline"> Director</span>
           </button>
-          <span className="hidden font-mono text-[10px] text-white/40 sm:inline">✦ {preset.label}</span>
+          <span className="hidden font-mono text-[10px] text-white/40 md:inline">✦ {preset.label}</span>
         </div>
-        <div className="pointer-events-auto flex gap-1.5">
+        <div className="pointer-events-auto flex flex-wrap justify-end gap-1.5">
           {MODES.map((m) => (
-            <button key={m.id} onClick={() => setMode(m.id)} className={`rounded-full px-4 py-2 font-mono text-[10px] uppercase tracking-wider transition ${mode === m.id ? "bg-[var(--theme-primary)] text-black" : "border border-white/15 text-white/60 hover:text-white"}`}>
+            <button key={m.id} onClick={() => setMode(m.id)} data-hint={m.hint}
+              className={`rounded-full px-3 py-2 font-mono text-[10px] uppercase tracking-wider backdrop-blur-sm transition sm:px-4 ${mode === m.id ? "bg-[var(--theme-primary)] text-black shadow-[0_0_18px_color-mix(in_srgb,var(--theme-primary)_55%,transparent)]" : "border border-white/15 bg-black/40 text-white/60 hover:text-white"}`}>
               {m.label}
             </button>
           ))}
-          <button onClick={toggle} className="pointer-events-auto ml-1 rounded-full border border-white/15 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white/70">
+        </div>
+      </div>
+
+      {/* NOW PERFORMING — the demo announces its random pick. */}
+      {demoTitle && (
+        <div key={track.id} className="now-performing pointer-events-none absolute inset-x-0 bottom-[120px] z-30 flex justify-center">
+          <span className="rounded-full bg-black/55 px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/80 backdrop-blur-sm">
+            ▶ now performing — <b className="text-[var(--theme-primary)]">{demoTitle}</b> · x1c7 catalog
+          </span>
+        </div>
+      )}
+
+      {/* Transport — the familiar row: prev · play/pause · next · help · record. */}
+      <div className={`pointer-events-none absolute inset-x-0 z-30 flex justify-center ${attribution ? "bottom-10" : "bottom-[max(0.75rem,env(safe-area-inset-bottom))]"}`}>
+        <div className="pointer-events-auto flex items-center gap-1.5 rounded-full border border-white/12 bg-black/55 px-2 py-1.5 backdrop-blur-md">
+          {(onPrevSong || onNextSong) && (
+            <button onClick={prev} data-hint-pos="up" data-hint="Restart — twice quickly for the previous song"
+              className="rounded-full px-3 py-1.5 font-mono text-sm text-white/70 transition hover:text-white" aria-label="Previous">⏮</button>
+          )}
+          <button onClick={toggle} data-hint-pos="up" data-hint={playing ? "Pause the show" : "Play"}
+            className="rounded-full bg-[var(--theme-primary)] px-5 py-1.5 font-mono text-sm text-black transition hover:scale-105" aria-label="Play or pause">
             {playing ? "❚❚" : "▶"}
           </button>
-          <button onClick={() => setLegend((v) => !v)} title="How to play with the show" aria-label="Interactions"
-            className={`pointer-events-auto rounded-full border px-3 py-2 font-mono text-[10px] transition ${legend ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 text-white/70 hover:text-white"}`}>
+          {onNextSong && (
+            <button onClick={onNextSong} data-hint-pos="up" data-hint="Another random song from the catalog"
+              className="rounded-full px-3 py-1.5 font-mono text-sm text-white/70 transition hover:text-white" aria-label="Next song">⏭</button>
+          )}
+          <span className="mx-0.5 h-5 w-px bg-white/15" />
+          <button onClick={() => setLegend((v) => !v)} data-hint-pos="up" data-hint="What does everything do?" aria-label="Help"
+            className={`rounded-full border px-3 py-1.5 font-mono text-[11px] transition ${legend ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 text-white/70 hover:text-white"}`}>
             ?
           </button>
           {rec.recording ? (
-            <button onClick={rec.stop} className="pointer-events-auto rounded-full bg-red-500 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-white">■ Stop</button>
+            <button onClick={rec.stop} data-hint-pos="up" data-hint="Stop and save your video"
+              className="rounded-full bg-red-500 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-white">■ Stop</button>
           ) : (
-            <button onClick={() => rec.start(frame === "wide" ? null : frameEl.current)} className="pointer-events-auto rounded-full border border-red-400/60 px-4 py-2 font-mono text-[10px] uppercase tracking-wider text-red-300 hover:bg-red-500/20">● Record</button>
+            <button onClick={() => rec.start(frame === "wide" ? null : frameEl.current)} data-hint-pos="up" data-hint="Record the show into a real video file"
+              className="rounded-full border border-red-400/60 px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-red-300 transition hover:bg-red-500/20">● Rec</button>
           )}
         </div>
       </div>
@@ -271,23 +327,35 @@ export function Show({ track, onExit, credits = [], attribution = "" }: {
       )}
 
       {legend && (
-        <div className="pointer-events-auto absolute left-1/2 top-16 z-40 w-[min(22rem,90vw)] -translate-x-1/2 rounded-2xl border border-white/12 bg-[#0b0810]/95 p-4 backdrop-blur">
-          <div className="flex items-center justify-between">
-            <h3 className="font-display text-sm font-black text-white">Play with the show</h3>
+        <div className="pointer-events-auto absolute left-1/2 top-14 z-40 flex max-h-[calc(100dvh-9.5rem)] w-[min(24rem,92vw)] -translate-x-1/2 flex-col rounded-2xl border border-white/12 bg-[#0b0810]/95 backdrop-blur">
+          <div className="flex items-center justify-between p-4 pb-2">
+            <h3 className="font-display text-sm font-black uppercase tracking-wide text-white">This stage is yours</h3>
             <button onClick={() => setLegend(false)} className="font-mono text-xs text-white/50 hover:text-white">✕</button>
           </div>
-          <ul className="mt-2 space-y-1.5 font-mono text-[11px] leading-snug text-white/70">
-            <li><b className="text-white">Tap a word</b> — it reacts in the song’s own language (burn, shatter, bloom…).</li>
-            <li><b className="text-white">Drag a word</b> — fling it around; it flies with real physics.</li>
-            <li><b className="text-white">Swipe the stage</b> — comb a glowing comet through the weather.</li>
-            <li><b className="text-white">Blow / shout</b> — if the song has mic moments, they detonate the drop.</li>
-            <li className="text-white/45">The show already answers the beat on its own — just watch, or jump in.</li>
-          </ul>
-          <div className="mt-3 border-t border-white/10 pt-2">
-            <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">Keys</p>
-            <p className="mt-1 font-mono text-[10px] leading-relaxed text-white/60">
-              <b className="text-white/80">space</b> play/pause · <b className="text-white/80">1/2/3</b> mode · <b className="text-white/80">V</b> frame · <b className="text-white/80">D</b> director · <b className="text-white/80">F</b> per-word FX · <b className="text-white/80">[ ]</b> vibe · <b className="text-white/80">H</b> this help
-            </p>
+          <div className="overflow-y-auto px-4 pb-4">
+            <ul className="space-y-1.5 font-mono text-[11px] leading-snug text-white/70">
+              <li><b className="text-white">Tap a word</b> — it reacts in the song’s own language (burn, shatter, bloom…).</li>
+              <li><b className="text-white">Drag a word</b> — fling it around; it flies with real physics.</li>
+              <li><b className="text-white">Swipe the stage</b> — comb a glowing comet through the weather.</li>
+              <li><b className="text-white">Blow / shout</b> — if the song has mic moments, they detonate the drop.</li>
+              <li className="text-white/45">The show already answers the beat on its own — just watch, or jump in.</li>
+            </ul>
+            <div className="mt-3 border-t border-white/10 pt-2">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">The controls</p>
+              <ul className="mt-1.5 space-y-1.5 font-mono text-[11px] leading-snug text-white/70">
+                <li><b className="text-white">Phrase / Focus / Focus+ / Dynamic</b> — four ways to watch: a sentence at a time, one clean word, one word with exit effects, or the full stagecraft.</li>
+                <li><b className="text-white">⚙ Director</b> — you run the show: vibe presets, weather, 9:16/1:1 frame, intensity sliders, per-word effects.</li>
+                <li><b className="text-white">⏮ ▶ ⏭</b> — restart, pause, or summon another song{onNextSong ? " from the catalog" : ""}.</li>
+                <li><b className="text-white">● Rec</b> — record what you see into a real video file, ready for TikTok/Reels/Shorts.</li>
+                <li><b className="text-white">← Exit</b> — back to the start to drop your own stems.</li>
+              </ul>
+            </div>
+            <div className="mt-3 border-t border-white/10 pt-2">
+              <p className="font-mono text-[10px] uppercase tracking-wider text-white/40">Keys</p>
+              <p className="mt-1 font-mono text-[10px] leading-relaxed text-white/60">
+                <b className="text-white/80">space</b> play/pause · <b className="text-white/80">1–4</b> mode · <b className="text-white/80">N</b> next song · <b className="text-white/80">V</b> frame · <b className="text-white/80">D</b> director · <b className="text-white/80">F</b> per-word FX · <b className="text-white/80">[ ]</b> vibe · <b className="text-white/80">H</b> this help
+              </p>
+            </div>
           </div>
         </div>
       )}

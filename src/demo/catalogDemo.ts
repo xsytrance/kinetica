@@ -54,13 +54,14 @@ function absolutize<T>(v: T): T {
 // timed words) make an empty stage. Require a show's worth of words.
 const MIN_WORDS = 40;
 
-export async function fetchRandomCatalogSong(onProgress?: (msg: string) => void): Promise<Track> {
+export async function fetchRandomCatalogSong(onProgress?: (msg: string) => void, excludeId?: string): Promise<Track> {
   onProgress?.("Calling the mothership…");
   // Cheap pass: ids of public, word-timed songs only. `words->39 exists` is
   // PostgREST for "the array has at least MIN_WORDS elements".
-  const ids = await rest<{ id: string }[]>(
+  let ids = await rest<{ id: string }[]>(
     `tracks?select=id&hidden=eq.false&lyrics_synced->words->${MIN_WORDS - 1}=not.is.null&planet=not.is.null&audio_url=not.is.null`,
   );
+  if (excludeId && ids.length > 1) ids = ids.filter((r) => r.id !== excludeId);
   if (!ids.length) throw new Error("catalog is empty");
   const pick = ids[Math.floor(Math.random() * ids.length)].id;
 
