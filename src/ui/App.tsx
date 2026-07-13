@@ -9,6 +9,7 @@ import { ArtStep } from "./ArtStep";
 import { Show } from "./Show";
 import { buildTrack } from "@/lib/buildTrack";
 import { makeDemo } from "@/demo/demoSong";
+import { fetchRandomCatalogSong } from "@/demo/catalogDemo";
 import { handleRedirectCode, installAuthListener } from "@/ai/openrouterAuth";
 import type { Track } from "@/lib/types";
 import type { SyncedWord } from "@/lib/lyrics";
@@ -64,7 +65,16 @@ export function App() {
   }, []);
 
   const onDemo = useCallback(async () => {
-    setError(null); setStep("processing"); setProgress("Cooking up a demo beat…");
+    setError(null); setStep("processing"); setProgress("Calling the mothership…");
+    // The real demo: a random word-timed planet from the x1c7.com catalog.
+    try {
+      const t = await fetchRandomCatalogSong(setProgress);
+      setTrack(t); setCredits([]); setAttribution(""); setStep("show");
+      return;
+    } catch {
+      // Offline or catalog unreachable — the synthesized beat still performs.
+      setProgress("Cooking up a demo beat…");
+    }
     try {
       const { stems, lyricsLrc, words, title } = makeDemo();
       const { url } = mixdownToWavUrl(stems);

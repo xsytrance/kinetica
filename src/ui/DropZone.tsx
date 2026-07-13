@@ -33,12 +33,26 @@ export function DropZone({ onFile, onDemo, error }: { onFile: (f: File) => void;
         </p>
       </div>
 
+      {/* The front-row seat: one tap, a real song performs. No file, no install. */}
+      <div className="flex w-full max-w-xl flex-col items-center gap-2">
+        <button
+          onClick={onDemo}
+          className="glow-text w-full rounded-3xl px-8 py-5 font-display text-xl font-black uppercase tracking-wide text-black transition hover:scale-[1.03] sm:text-2xl"
+          style={{ background: "var(--theme-primary)", boxShadow: "0 0 40px color-mix(in srgb, var(--theme-primary) 45%, transparent)" }}
+        >
+          ▶ Watch a live demo
+        </button>
+        <span className="font-mono text-[11px] uppercase tracking-wider text-white/45">
+          a random song from the x1c7.com catalog — different every time · no file, no install
+        </span>
+      </div>
+
       <button
         onClick={() => inputRef.current?.click()}
         onDragOver={(e) => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); pick(e.dataTransfer.files); }}
-        className={`flex h-64 w-full max-w-xl flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed transition ${
+        className={`flex h-56 w-full max-w-xl flex-col items-center justify-center gap-4 rounded-3xl border-2 border-dashed transition ${
           over ? "border-[var(--theme-primary)] bg-white/5 scale-[1.02]" : "border-white/20 hover:border-white/40"
         }`}
       >
@@ -47,10 +61,6 @@ export function DropZone({ onFile, onDemo, error }: { onFile: (f: File) => void;
         <span className="font-mono text-[11px] uppercase tracking-wider text-white/40">100% local · nothing is uploaded</span>
       </button>
       <input ref={inputRef} type="file" accept=".zip" className="hidden" onChange={(e) => pick(e.target.files)} />
-
-      <button onClick={onDemo} className="font-mono text-xs uppercase tracking-wider text-white/60 transition hover:text-[var(--theme-primary)]">
-        ✨ or try a demo — no file needed
-      </button>
 
       {error && <p className="max-w-xl text-center text-sm text-red-300">{error}</p>}
 
