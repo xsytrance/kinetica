@@ -50,11 +50,16 @@ function absolutize<T>(v: T): T {
   return v;
 }
 
+// The demo sells the LYRIC engine — near-instrumentals (AI Interlude has 2
+// timed words) make an empty stage. Require a show's worth of words.
+const MIN_WORDS = 40;
+
 export async function fetchRandomCatalogSong(onProgress?: (msg: string) => void): Promise<Track> {
   onProgress?.("Calling the mothership…");
-  // Cheap pass: ids of public, word-timed songs only (planets that can perform).
+  // Cheap pass: ids of public, word-timed songs only. `words->39 exists` is
+  // PostgREST for "the array has at least MIN_WORDS elements".
   const ids = await rest<{ id: string }[]>(
-    "tracks?select=id&hidden=eq.false&lyrics_synced->words=not.is.null&planet=not.is.null&audio_url=not.is.null",
+    `tracks?select=id&hidden=eq.false&lyrics_synced->words->${MIN_WORDS - 1}=not.is.null&planet=not.is.null&audio_url=not.is.null`,
   );
   if (!ids.length) throw new Error("catalog is empty");
   const pick = ids[Math.floor(Math.random() * ids.length)].id;
@@ -63,7 +68,7 @@ export async function fetchRandomCatalogSong(onProgress?: (msg: string) => void)
     `tracks?select=id,title,artist,genre,mood,color,audio_url,lyrics,lyrics_synced,planet&id=eq.${encodeURIComponent(pick)}`,
   );
   const row = rows[0];
-  if (!row?.lyrics_synced?.words?.length || !row.planet) throw new Error("picked a silent planet");
+  if ((row?.lyrics_synced?.words?.length ?? 0) < MIN_WORDS || !row.planet) throw new Error("picked a silent planet");
   onProgress?.(`Summoning “${row.title}”…`);
 
   return {
