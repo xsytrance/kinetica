@@ -18,6 +18,9 @@ interface PlayerCtx {
   setMuffle: (amount: number) => void;
   /** A live MediaStream of the song audio, for recording an export. */
   getAudioStream: () => MediaStream | null;
+  /** Resolves once the loaded song is safely playable (buffered well ahead) —
+   *  the show holds its curtain on this instead of opening into silence. */
+  waitReady: (aheadSec?: number) => Promise<void>;
 }
 
 const Ctx = createContext<PlayerCtx | null>(null);
@@ -97,12 +100,27 @@ export function MusicPlayerProvider({ children }: { children: React.ReactNode })
 
   const getAudioStream = useCallback(() => streamDestRef.current?.stream ?? null, []);
 
+  const waitReady = useCallback((aheadSec = 6) => new Promise<void>((resolve) => {
+    const audio = audioRef.current;
+    if (!audio) { resolve(); return; }
+    const ready = () => {
+      if (audio.readyState >= 4) return true; // browser says: through to the end
+      const buf = audio.buffered;
+      const ahead = buf.length ? buf.end(buf.length - 1) - audio.currentTime : 0;
+      return audio.readyState >= 3 && (ahead >= aheadSec || (audio.duration > 0 && ahead >= audio.duration - 0.5));
+    };
+    if (ready()) { resolve(); return; }
+    const evs = ["canplaythrough", "canplay", "progress", "loadeddata"] as const;
+    const check = () => { if (ready()) { evs.forEach((e) => audio.removeEventListener(e, check)); resolve(); } };
+    evs.forEach((e) => audio.addEventListener(e, check));
+  }), []);
+
   useEffect(() => () => { audioRef.current?.pause(); ctxRef.current?.close().catch(() => {}); }, []);
 
   const value = useMemo<PlayerCtx>(() => ({
     currentTrack, isPlaying, duration, analyser,
-    load, play, pause, toggle, seek, getCurrentTime, setMuffle, getAudioStream,
-  }), [currentTrack, isPlaying, duration, analyser, load, play, pause, toggle, seek, getCurrentTime, setMuffle, getAudioStream]);
+    load, play, pause, toggle, seek, getCurrentTime, setMuffle, getAudioStream, waitReady,
+  }), [currentTrack, isPlaying, duration, analyser, load, play, pause, toggle, seek, getCurrentTime, setMuffle, getAudioStream, waitReady]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

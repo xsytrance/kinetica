@@ -11,6 +11,7 @@ import { loadCustomPresets, saveCustomPreset, deleteCustomPreset } from "@/lib/c
 import { songLook, seedWordEffects } from "@/lib/songLook";
 import { VibeBuilder } from "./VibeBuilder";
 import { deriveTheme } from "@/lib/theme";
+import { Eq } from "./Eq";
 import type { ThemeOverride } from "@/lib/theme";
 import { extractPalette } from "@/lib/palette";
 import type { Track } from "@/lib/types";
@@ -142,10 +143,34 @@ export function Show({ track, onExit, onNextSong, onPrevSong, demoTitle, credits
     return () => { r.removeProperty("--font-display"); };
   }, [preset, autoPalette]);
 
+  // ── The curtain: hold each song until it can actually perform ──
+  // Audio buffered well ahead + the first backdrops decoded, THEN play. Until
+  // then the stage sits behind a title card with a live equalizer — never ten
+  // seconds of silent words over a bare stage. A 12s ceiling means a slow
+  // network degrades to the old behavior, never to a stuck curtain.
+  const [warming, setWarming] = useState(true);
   useEffect(() => {
+    let on = true;
+    setWarming(true);
     player.load(track);
-    const t = setTimeout(() => { player.play(); setPlaying(true); }, 300);
-    return () => { clearTimeout(t); player.pause(); };
+    const assets = track.planet?.assets as { keywords?: Record<string, string>; sections?: Record<string, string> } | undefined;
+    const firstArt = [...Object.values(assets?.sections ?? {}), ...Object.values(assets?.keywords ?? {})]
+      .filter((u) => typeof u === "string" && /^https?:|^blob:/.test(u))
+      .slice(0, 2);
+    const preloadArt = Promise.all(firstArt.map((u) => new Promise<void>((res) => {
+      const img = new Image();
+      img.onload = () => res(); img.onerror = () => res();
+      img.src = u;
+      setTimeout(res, 5000); // one slow image never holds the curtain hostage
+    })));
+    const ceiling = new Promise<void>((res) => setTimeout(res, 12000));
+    Promise.race([Promise.all([player.waitReady(6), preloadArt]).then(() => {}), ceiling]).then(() => {
+      if (!on) return;
+      setWarming(false);
+      player.play();
+      setPlaying(true);
+    });
+    return () => { on = false; player.pause(); };
   }, [track]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = () => { player.toggle(); setPlaying((p) => !p); };
@@ -208,10 +233,12 @@ export function Show({ track, onExit, onNextSong, onPrevSong, demoTitle, credits
           </button>
           <button
             onClick={() => setDeckOpen((v) => !v)}
-            data-hint="The director's deck — vibe, weather, frame, intensity" aria-label="Director's deck"
-            className={`rounded-full border px-3 py-2 font-mono text-[10px] uppercase tracking-wider backdrop-blur-sm transition sm:px-4 ${deckOpen ? "border-[var(--theme-secondary)] text-[var(--theme-secondary)]" : "border-white/15 bg-black/40 text-white/70 hover:text-white"}`}
+            data-hint="Your control room — vibe, weather, frame, intensity, per-word FX" aria-label="Director's deck"
+            className={`rounded-full px-3.5 py-2 font-mono text-[10px] font-bold uppercase tracking-wider backdrop-blur-sm transition sm:px-4 ${deckOpen
+              ? "bg-[var(--theme-secondary)] text-black shadow-[0_0_18px_color-mix(in_srgb,var(--theme-secondary)_60%,transparent)]"
+              : "border border-[var(--theme-secondary)] bg-black/40 text-[var(--theme-secondary)] shadow-[0_0_14px_color-mix(in_srgb,var(--theme-secondary)_30%,transparent)] hover:bg-[var(--theme-secondary)]/15"}`}
           >
-            ⚙<span className="hidden sm:inline"> Director</span>
+            ⚙ Director
           </button>
           <span className="hidden font-mono text-[10px] text-white/40 md:inline">✦ {preset.label}</span>
         </div>
@@ -225,8 +252,28 @@ export function Show({ track, onExit, onNextSong, onPrevSong, demoTitle, credits
         </div>
       </div>
 
+      {/* The curtain — song card + live equalizer until the show can perform. */}
+      {warming && (
+        <div className="absolute inset-0 z-40 flex flex-col items-center justify-center gap-5 bg-[color-mix(in_srgb,var(--theme-bg)_82%,black)]/90 p-6 text-center backdrop-blur-md">
+          <p className="font-mono text-[10px] uppercase tracking-[0.45em] text-white/40">warming up the stage</p>
+          <h2 className="title-aurora max-w-2xl font-display text-3xl font-black uppercase leading-tight sm:text-5xl">{track.title}</h2>
+          <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/50">
+            {[track.artist, track.genre].filter(Boolean).join(" · ")}
+          </p>
+          {track.planet?.analysis?.overallMood && (
+            <p className="max-w-md font-mono text-xs uppercase tracking-[0.25em] text-[var(--theme-secondary)]">
+              {track.planet.analysis.overallMood}
+            </p>
+          )}
+          <Eq bars={28} />
+          <p className="font-mono text-[10px] uppercase tracking-wider text-white/35">
+            buffering the song · decoding the backdrops · timing every word
+          </p>
+        </div>
+      )}
+
       {/* NOW PERFORMING — the demo announces its random pick. */}
-      {demoTitle && (
+      {demoTitle && !warming && (
         <div key={track.id} className="now-performing pointer-events-none absolute inset-x-0 bottom-[120px] z-30 flex justify-center">
           <span className="rounded-full bg-black/55 px-4 py-1.5 font-mono text-[10px] uppercase tracking-[0.25em] text-white/80 backdrop-blur-sm">
             ▶ now performing — <b className="text-[var(--theme-primary)]">{demoTitle}</b> · x1c7 catalog
