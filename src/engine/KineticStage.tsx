@@ -20,6 +20,9 @@ import { loadLexicon, aggregateLegos } from "@/lib/lexicon/lookup";
 import type { Lexicon } from "@/lib/lexicon/types";
 import { loadStems, envAt, activeCut, activeRiser, OnsetTracker, type StemData } from "@/lib/stemSense";
 import { stemMixStore } from "@/lib/stemMix";
+import { featureBus } from "@/lib/engine/features";
+import { loadMelody, melodyIndex, keyPc, hexHue, pitchColor, pitchHue, medianMidi, melodicMotion, type MelodyWord } from "@/lib/engine/melody";
+import { KineticBackdrop } from "./KineticBackdrop";
 import { usePerfLite } from "@/lib/perf";
 import { PerfHUD } from "./PerfHUD";
 import type { Track } from "@/lib/engineHost";
@@ -554,6 +557,12 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
   const lastStemT = useRef(0);
   // PHASE 5 cinematic camera: the current section's energy drives the dolly push.
   const camPush = useRef(0.35);
+  // Quantized grade: a section's color-grade waits for the next bar line of
+  // the MEASURED beat grid instead of firing on the LLM's approximate stamp.
+  const pendingGrade = useRef<{ at: number; run: () => void } | null>(null);
+  // The last word we measured on stage — when the next word arrives, this one
+  // dissolves into the backdrop's ghost buffer.
+  const lastGhost = useRef<{ word: string; x: number; y: number; fs: number; hue?: number | null } | null>(null);
   const [cutMode, setCutMode] = useState(false);
   const cutRef = useRef<[number, number] | null>(null);
   const riserRef = useRef<{ t: number; end: number } | null>(null);
@@ -576,6 +585,43 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
     });
     return () => { on = false; };
   }, [track.id, track.planet, pass]);
+  // ── MELODY SENSE ── the singer's measured notes (melody.json, written by
+  // analyze_melody.py from the isolated lead vocal). When present, each word
+  // wears the color of the note it was sung on — tonic = the theme's own hue,
+  // harmonic distance = hue distance. Absent → words render exactly as before.
+  const [melody, setMelody] = useState<{ tonic: number; median: number; minor: boolean; words: Map<number, MelodyWord> } | null>(null);
+  useEffect(() => {
+    setMelody(null);
+    if (pass < 3) return;
+    // Explicit asset URL wins (host apps / the perf harness); else convention
+    // path next to gallery.json. Raw fetch like stems — hosts store full URLs.
+    const explicit = (track.planet?.assets as { melody?: string } | undefined)?.melody;
+    const url = explicit ?? (PLANET_BASE ? `${PLANET_BASE}/planets/${track.id}/melody.json` : null);
+    if (!url) return;
+    let on = true;
+    loadMelody(url).then((m) => {
+      if (on && m) setMelody({ tonic: keyPc(m), median: medianMidi(m), minor: m.key.mode === "minor", words: melodyIndex(m) });
+    });
+    return () => { on = false; };
+  }, [track.id, track.planet, pass]);
+  // The feature bus: point it at this song's ground truth (measured stems +
+  // the analysis' emotion arc). The generative backdrop, LFOs, and stem-follow
+  // modulators all read the bus; it degrades gracefully when either is absent.
+  // (Declared after melody state: the key is re-asserted AFTER the reset —
+  // stems and melody load in a race, and setSong wipes whatever the earlier
+  // fetch already declared.)
+  useEffect(() => {
+    featureBus.setSong(stems, track.planet?.analysis?.sections);
+    pendingGrade.current = null;
+    if (melody) featureBus.setKey(melody.tonic, melody.minor);
+  }, [stems, track.id, track.planet, melody]);
+  const themeHue = useMemo(() => hexHue(palette[0] ?? track.color), [palette, track.color]);
+  // Refs so the per-frame tick (ghost hand-off) reads current melody state
+  // without rebuilding the rAF loop.
+  const melodyRef = useRef(melody);
+  melodyRef.current = melody;
+  const themeHueRef = useRef(themeHue);
+  themeHueRef.current = themeHue;
   // Pulse rings: landing ripples for charged/final words + beat-synced rings.
   const [pulseRings, setPulseRings] = useState<{ id: number; big: boolean }[]>([]);
   const pulseId = useRef(0);
@@ -932,6 +978,32 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
       }
       if (i !== lastWord.current) {
         lastWord.current = i; setIdx(i);
+        // The word that just left dissolves into the backdrop (not in phrase
+        // mode — there the whole line stays on stage; nothing actually left).
+        if (mode !== "phrase" && lastGhost.current) {
+          featureBus.pushGhost(lastGhost.current);
+          lastGhost.current = null;
+        }
+        // Feed the word's landing spot to the feature bus (next frame, once
+        // it exists in the DOM) — the backdrop leans toward the active lyric.
+        if (i >= 0) {
+          const wi = i;
+          requestAnimationFrame(() => {
+            const el = wordEls.current.get(wi);
+            if (el && el.offsetParent) {
+              const r = el.getBoundingClientRect();
+              const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+              featureBus.setWord(cx, cy, window.innerWidth, window.innerHeight);
+              // the ghost remembers the note it was sung on (melody sense)
+              const m = melodyRef.current;
+              const mw = m?.words.get(wi);
+              const hue = m && mw && mw.conf >= 0.35 ? pitchHue(themeHueRef.current, mw.pc, m.tonic) : null;
+              lastGhost.current = { word: clean(words[wi].w), x: cx, y: cy, fs: parseFloat(getComputedStyle(el).fontSize) || 48, hue };
+            } else {
+              featureBus.setWord(window.innerWidth / 2, window.innerHeight * 0.45, window.innerWidth, window.innerHeight);
+            }
+          });
+        }
         // The outgoing word joins the pile (max 3 residues + the live word).
         // Its true on-stage position + font size are measured off the DOM so
         // the residue takes over without a pixel of drift.
@@ -1127,6 +1199,7 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
         if (!!cut !== !!cutRef.current) {
           cutRef.current = cut;
           setCutMode(!!cut);
+          featureBus.setCut(!!cut);
           particles.current?.freeze(!!cut);
           if (!cut) {
             setWave((w) => w + 1);
@@ -1156,6 +1229,16 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
           }
         }
       }
+      // ── FEATURE BUS ── one ground-truth snapshot per frame. The generative
+      // backdrop's own rAF + the modulation engine read it right after.
+      featureBus.setKick(kickPulse.current);
+      featureBus.update(t);
+      // A grade waiting for its bar line lands the moment the beat arrives.
+      if (pendingGrade.current && featureBus.F.totalBeats >= pendingGrade.current.at) {
+        const g = pendingGrade.current;
+        pendingGrade.current = null;
+        g.run();
+      }
       // Title card: only before the first sung word.
       const titled = words.length > 0 && t < words[0].t - 0.2;
       if (titled !== titleRef.current) { titleRef.current = titled; setShowTitle(titled); }
@@ -1166,13 +1249,22 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
           lastSec.current = key;
           setSection(s);
           if (s) {
-            gradeTo(s);
-            camPush.current = s.intensity;
-            stageRef.current?.style.setProperty("--emo", String(s.intensity));
+            // Art starts decoding immediately (the swap is throttled anyway)…
             const mood = sectionArt?.[s.emotion.toLowerCase()];
             if (mood) requestArt(pickArt(mood));
-            // Pass 2: big scene changes send a shockwave through the stage.
-            if (pass >= 2 && s.intensity >= 0.7) setWave((w) => w + 1);
+            // …but the grade/camera/shockwave land ON the next bar line when
+            // the measured grid is live — a scene change that hits with the
+            // band instead of on the analyst's approximate timestamp.
+            const applyGrade = () => {
+              gradeTo(s);
+              camPush.current = s.intensity;
+              stageRef.current?.style.setProperty("--emo", String(s.intensity));
+              // Pass 2: big scene changes send a shockwave through the stage.
+              if (pass >= 2 && s.intensity >= 0.7) setWave((w) => w + 1);
+            };
+            const at = featureBus.nextBoundary(4);
+            if (at !== null) pendingGrade.current = { at, run: applyGrade };
+            else applyGrade();
           }
         }
       }
@@ -1203,12 +1295,35 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
   const shown = word ? clean(word) : "";
   const lower = shown.toLowerCase();
   const charged = !!word && lower in keywordEmotion;
+  // The sung note colors the word (melody sense): tonic wears the theme hue,
+  // harmonic distance bends it. Charged words keep their accent identity.
+  const pitchCol = melody && idx >= 0 && !charged
+    ? pitchColor(themeHue, melody.words.get(idx), melody.tonic)
+    : null;
   const treatment: SectionMotion = section ? sectionMotion(section) : "pulse";
+  // ── MELODY MOTION ── the word moves WITH the melodic line: a rising
+  // interval lifts it into place from below, a falling one sinks it in from
+  // above (magnitude follows the leap), and the exit leads the ear toward
+  // where the melody goes NEXT. Octave height above/below the singer's home
+  // register nudges the dynamic word's size a touch (±8%).
+  const melMotion = melody && idx >= 0
+    ? melodicMotion(melody.words, idx, words.length - 1)
+    : null;
+  const melInY = melMotion ? Math.max(-64, Math.min(64, melMotion.inDelta * 5.5)) : 0;
+  const melOutY = melMotion ? -Math.max(-48, Math.min(48, melMotion.outDelta * 4)) : 0;
+  const octScale = melMotion && melody ? 1 + Math.max(-0.08, Math.min(0.08, (melMotion.midi - melody.median) * 0.011)) : 1;
   // Focus modes override the section's motion with a calm entrance + a clean
   // (Focus) or effect (Focus+, seeded per word) exit. Others ride the section.
-  const m = focusMode
+  const m0 = focusMode
     ? { ...FOCUS_IN, exit: focusFx ? FOCUS_EXITS[((idx * 2654435761) >>> 0) % FOCUS_EXITS.length] : FOCUS_EXIT_PLAIN }
     : MOTION[treatment];
+  const m = melInY || melOutY
+    ? {
+        ...m0,
+        ...(melInY ? { initial: { ...(m0.initial as object), y: melInY } } : null),
+        ...(melOutY ? { exit: { ...(m0.exit as object), y: melOutY } } : null),
+      }
+    : m0;
   // Shape-morph: lexicon words morph when they have air; charged words fall back
   // to a glyph chosen from their EMOTION, so the brain's picks always land big.
   const airtime = idx >= 0 ? (words[idx + 1] ? words[idx + 1].t - words[idx].t : 3) : 0;
@@ -1351,6 +1466,18 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
     // timeline) must live here, since the beat-scaled .kinetic-stage would
     // otherwise become their containing block and misplace them.
     <div ref={rootRef} className={`relative flex h-full w-full flex-col items-center justify-center${cutMode ? " stem-cut" : ""}`} onPointerDown={scoreTap} onPointerMove={stageMove}>
+      {/* The living backdrop — a generative field breathing behind (and
+          through) the song art: GL canvas at -z-20, art at -z-10 with 0.6–0.85
+          opacity glows over it. Fed by the feature bus (real stems, riser
+          charge, word position). Skipped on phones with the other heavy layers. */}
+      {pass >= 4 && !lite && (
+        <KineticBackdrop
+          seed={track.id}
+          palette={palette}
+          sectionEmotion={section?.emotion ?? null}
+          sectionIntensity={section?.intensity ?? 0.35}
+        />
+      )}
       {/* Generated song art — crossfading Ken-Burns backdrop behind the words */}
       <AnimatePresence>
         {bgArt && (
@@ -1627,7 +1754,7 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
                         animate={{
                           opacity: sung ? 1 : 0.26,
                           scale: active ? 1.22 : 1,
-                          color: active ? "var(--theme-accent)" : sung ? "var(--theme-primary)" : "rgba(255,255,255,0.8)",
+                          color: active ? (pitchCol ?? "var(--theme-accent)") : sung ? "var(--theme-primary)" : "rgba(255,255,255,0.8)",
                         }}
                         transition={{ duration: 0.22 }}
                         style={active ? { filter: "drop-shadow(0 0 18px var(--theme-accent))" } : undefined}
@@ -1672,7 +1799,10 @@ export function KineticStage({ track, timelineBottomClass = "bottom-[86px]", pas
               <motion.div
                 key={idx}
                 className={`kinetic-word absolute${charged ? " kinetic-word--charged" : ""}${pass >= 2 && final ? " kinetic-word--final" : ""}${held ? " kinetic-word--held" : ""}${dyn?.mono ? " !font-mono" : ""}${pass >= 3 ? " cursor-pointer select-none" : ""}${charging ? " kinetic-charging" : ""}`}
-                style={dyn ? { left: `calc(50% + ${dyn.x}vw)`, top: `calc(50% + ${dyn.y}vh)`, marginLeft: -estW / 2, marginTop: -estH / 2, rotate: dyn.rot, fontSize: `calc(clamp(3rem, 16vw, 14rem) * ${dyn.size * delivery})` } : undefined}
+                style={dyn || pitchCol ? {
+                  ...(dyn ? { left: `calc(50% + ${dyn.x}vw)`, top: `calc(50% + ${dyn.y}vh)`, marginLeft: -estW / 2, marginTop: -estH / 2, rotate: dyn.rot, fontSize: `calc(clamp(3rem, 16vw, 14rem) * ${(dyn.size * delivery * octScale).toFixed(4)})` } : null),
+                  ...(pitchCol ? { color: pitchCol } : null),
+                } : undefined}
                 ref={(el) => { if (el) { wordEls.current.set(idx, el); const pv = phys.current.get(idx); if (pv) el.style.translate = `${pv.x}px ${pv.y}px`; } }}
                 onPointerDown={pass >= 3 ? (e) => { chargeAt.current = Date.now(); setCharging(true); grabStart(idx)(e); } : undefined}
                 onPointerUp={pass >= 3 ? (e) => {
