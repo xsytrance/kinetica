@@ -135,6 +135,24 @@ export function DropZone({ onFile, onDemo, error }: { onFile: (f: File) => void;
         </p>
       </div>
 
+      {/* ── The Studio — the same engine, catalog edition, open to everyone ── */}
+      <div className="w-full max-w-xl rounded-2xl border border-white/10 bg-white/[0.03] p-5 text-center backdrop-blur-sm">
+        <p className="font-mono text-[10px] uppercase tracking-[0.35em] text-white/40">want the full instrument?</p>
+        <p className="mt-3 font-display text-base leading-relaxed text-white/85">
+          The <b style={{ color: "var(--theme-secondary)" }}>x1c7 Studio</b> runs this same engine over a full
+          measured catalog — looks, section decks, automation, live telemetry, even your own shaders.
+        </p>
+        <a
+          href="https://x1c7.com/studio"
+          target="_blank"
+          rel="noreferrer"
+          className="mt-4 inline-flex items-center gap-2 rounded-full border px-6 py-3 font-display text-sm font-bold transition hover:scale-105"
+          style={{ borderColor: "var(--theme-secondary)", color: "var(--theme-secondary)" }}
+        >
+          🎛 Open the Studio →
+        </a>
+      </div>
+
       {/* ── Footer ── */}
       <div className="flex flex-col items-center gap-2">
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-white/40">made by xsytrance</p>
