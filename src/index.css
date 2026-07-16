@@ -198,3 +198,126 @@ body::before {
   background: repeating-linear-gradient(to bottom, transparent, transparent 2px, rgba(255,255,255,0.04) 3px); }
 .fx-monsoon { filter: saturate(0.85) hue-rotate(6deg) brightness(0.96) contrast(1.03); }
 .fx-lofi { filter: sepia(0.25) saturate(0.9) contrast(1.02) brightness(1.0); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   JUKEBOX LANDING — the xsytrance overhaul. A fresh neon palette scoped to the
+   landing (.jk) so the engine's per-song theming is never touched. Layered
+   ghost type, floating notes, aurora light, a living equalizer, pulsing chrome.
+   ═══════════════════════════════════════════════════════════════════════════ */
+.jk {
+  --jk-bg0: #06040f;
+  --jk-bg1: #0e0722;
+  --jk-pink: #ff2e88;
+  --jk-magenta: #ff4dd2;
+  --jk-cyan: #22e6ff;
+  --jk-gold: #ffc24b;
+  --jk-violet: #a468ff;
+  --jk-mint: #4dffc4;
+  --jk-ink: #f4eefe;
+  background:
+    radial-gradient(circle at 50% -10%, color-mix(in srgb, var(--jk-violet) 26%, transparent), transparent 55%),
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--jk-pink) 16%, transparent), transparent 40%),
+    linear-gradient(180deg, var(--jk-bg1), var(--jk-bg0) 60%);
+  color: var(--jk-ink);
+}
+
+/* ── beat: one global pulse everything can ride ── */
+@keyframes jk-beat { 0%, 100% { transform: scale(1); } 6% { transform: scale(1.035); } 14% { transform: scale(1); } }
+@keyframes jk-breathe { 0%, 100% { opacity: 0.85; filter: brightness(1); } 50% { opacity: 1; filter: brightness(1.18); } }
+
+/* ── aurora light pools ── */
+.jk-aurora { position: absolute; border-radius: 50%; filter: blur(70px); opacity: 0.55; mix-blend-mode: screen; }
+.jk-aurora-1 { top: -14%; left: -6%; width: 60vw; height: 60vw; background: radial-gradient(circle, var(--jk-pink), transparent 66%); animation: jk-drift1 22s ease-in-out infinite; }
+.jk-aurora-2 { top: 6%; right: -12%; width: 55vw; height: 55vw; background: radial-gradient(circle, var(--jk-cyan), transparent 66%); animation: jk-drift2 26s ease-in-out infinite; }
+.jk-aurora-3 { bottom: -20%; left: 20%; width: 66vw; height: 66vw; background: radial-gradient(circle, var(--jk-violet), transparent 68%); animation: jk-drift3 30s ease-in-out infinite; }
+@keyframes jk-drift1 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(8vw,6vh) scale(1.12); } }
+@keyframes jk-drift2 { 0%,100% { transform: translate(0,0) scale(1.05); } 50% { transform: translate(-7vw,8vh) scale(0.92); } }
+@keyframes jk-drift3 { 0%,100% { transform: translate(0,0) scale(1); } 50% { transform: translate(6vw,-6vh) scale(1.1); } }
+
+/* ── giant ghost typography ── */
+.jk-ghost {
+  position: absolute; font-family: var(--font-display), sans-serif; font-weight: 900;
+  text-transform: uppercase; letter-spacing: -0.04em; line-height: 0.8; white-space: nowrap;
+  color: transparent; -webkit-text-stroke: 2px color-mix(in srgb, var(--jk-ink) 7%, transparent);
+  user-select: none; pointer-events: none;
+}
+.jk-ghost-a { top: 2%; left: -3%; font-size: 30vw; animation: jk-ghostdrift 34s ease-in-out infinite; }
+.jk-ghost-b { bottom: 4%; right: -4%; font-size: 26vw; color: color-mix(in srgb, var(--jk-cyan) 5%, transparent); -webkit-text-stroke: 0; animation: jk-ghostdrift 40s ease-in-out infinite reverse; }
+.jk-ghost-c { top: 40%; left: 30%; font-size: 20vw; transform: rotate(-8deg); animation: jk-ghostdrift 30s ease-in-out infinite; }
+@keyframes jk-ghostdrift { 0%,100% { transform: translate(0,0) rotate(var(--r,0deg)); opacity: 0.9; } 50% { transform: translate(-2vw,2vh) rotate(var(--r,0deg)); opacity: 0.5; } }
+
+/* ── floating musical notes ── */
+.jk-note {
+  position: absolute; bottom: -8%; opacity: 0; will-change: transform, opacity;
+  text-shadow: 0 0 12px currentColor; animation-name: jk-float; animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+@keyframes jk-float {
+  0% { transform: translateY(0) rotate(0deg) scale(0.7); opacity: 0; }
+  10% { opacity: 0.8; }
+  85% { opacity: 0.7; }
+  100% { transform: translateY(-112vh) rotate(220deg) scale(1.1); opacity: 0; }
+}
+
+/* ── living equalizer floor ── */
+.jk-eq { position: absolute; left: 0; right: 0; bottom: 0; height: 34vh; display: flex; align-items: flex-end; gap: 2px; padding: 0 2px; opacity: 0.5; mask-image: linear-gradient(to top, #000 0%, transparent 95%); }
+.jk-eq i { flex: 1; transform-origin: bottom; border-radius: 3px 3px 0 0; background: linear-gradient(to top, var(--jk-pink), var(--jk-violet) 45%, var(--jk-cyan)); animation: jk-eqbar ease-in-out infinite; }
+@keyframes jk-eqbar { 0%,100% { transform: scaleY(0.08); } 50% { transform: scaleY(1); } }
+
+.jk-vignette { position: absolute; inset: 0; background: radial-gradient(ellipse 80% 70% at 50% 42%, transparent 45%, color-mix(in srgb, var(--jk-bg0) 92%, transparent) 100%); }
+
+/* ── the wordmark: layered ghost echo + chrome neon over it, pulsing ── */
+.jk-wordwrap { position: relative; display: inline-block; }
+.jk-wordmark {
+  font-family: var(--font-display), sans-serif; font-weight: 900; text-transform: uppercase;
+  letter-spacing: -0.03em; line-height: 0.86;
+  background: linear-gradient(100deg, var(--jk-gold), var(--jk-pink) 35%, var(--jk-violet) 62%, var(--jk-cyan));
+  background-size: 260% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  animation: jk-sheen 7s linear infinite, jk-beat 2.4s ease-in-out infinite;
+  filter: drop-shadow(0 0 26px color-mix(in srgb, var(--jk-pink) 40%, transparent));
+}
+.jk-wordmark .jk-ch { display: inline-block; animation: jk-bob 3.4s ease-in-out infinite; }
+@keyframes jk-bob { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-0.06em); } }
+@keyframes jk-sheen { to { background-position: 260% 0; } }
+.jk-wordecho {
+  position: absolute; inset: 0; z-index: -1; font-family: var(--font-display), sans-serif; font-weight: 900;
+  text-transform: uppercase; letter-spacing: -0.03em; line-height: 0.86; color: transparent;
+  -webkit-text-stroke: 1px color-mix(in srgb, var(--jk-cyan) 16%, transparent);
+  filter: blur(6px); transform: scale(1.04); opacity: 0.4;
+}
+
+/* ── neon drop zone ── */
+.jk-drop {
+  position: relative; border-radius: 28px; overflow: hidden; isolation: isolate;
+  background: color-mix(in srgb, var(--jk-bg0) 55%, transparent); backdrop-filter: blur(6px);
+  border: 2px dashed color-mix(in srgb, var(--jk-cyan) 45%, transparent);
+  box-shadow: 0 0 40px color-mix(in srgb, var(--jk-pink) 18%, transparent), inset 0 0 40px color-mix(in srgb, var(--jk-violet) 12%, transparent);
+  transition: transform 0.18s ease, box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.jk-drop::before {
+  content: ""; position: absolute; inset: -2px; z-index: -1; border-radius: 30px;
+  background: conic-gradient(from 0deg, var(--jk-pink), var(--jk-cyan), var(--jk-gold), var(--jk-violet), var(--jk-pink));
+  opacity: 0; transition: opacity 0.25s ease; animation: jk-spin 6s linear infinite;
+}
+.jk-drop:hover, .jk-drop.jk-over { transform: translateY(-3px) scale(1.015); border-color: var(--jk-cyan); box-shadow: 0 0 64px color-mix(in srgb, var(--jk-cyan) 40%, transparent); }
+.jk-drop:hover::before, .jk-drop.jk-over::before { opacity: 0.5; }
+@keyframes jk-spin { to { transform: rotate(360deg); } }
+
+/* ── neon pill buttons ── */
+.jk-pill {
+  border-radius: 999px; font-family: var(--font-display), sans-serif; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 0.12em; transition: transform 0.16s ease, box-shadow 0.25s ease, background 0.25s;
+}
+.jk-pill-primary { color: var(--jk-bg0); background: linear-gradient(100deg, var(--jk-gold), var(--jk-pink)); box-shadow: 0 0 34px color-mix(in srgb, var(--jk-pink) 45%, transparent); }
+.jk-pill-primary:hover { transform: translateY(-2px) scale(1.04); box-shadow: 0 0 52px color-mix(in srgb, var(--jk-pink) 60%, transparent); }
+.jk-pill-ghost { color: var(--jk-ink); border: 1px solid color-mix(in srgb, var(--jk-cyan) 40%, transparent); background: color-mix(in srgb, var(--jk-bg0) 40%, transparent); }
+.jk-pill-ghost:hover { transform: translateY(-2px); border-color: var(--jk-cyan); box-shadow: 0 0 26px color-mix(in srgb, var(--jk-cyan) 30%, transparent); }
+
+.jk-card { border-radius: 18px; border: 1px solid color-mix(in srgb, var(--jk-ink) 10%, transparent); background: color-mix(in srgb, var(--jk-bg1) 60%, transparent); backdrop-filter: blur(6px); }
+.jk-eyebrow { font-family: var(--font-mono), monospace; text-transform: uppercase; letter-spacing: 0.4em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .jk-aurora, .jk-ghost, .jk-note, .jk-eq i, .jk-wordmark, .jk-wordmark .jk-ch, .jk-drop::before { animation: none !important; }
+  .jk-note { opacity: 0.35; }
+  .jk-eq i { transform: scaleY(0.5); }
+}
