@@ -5,6 +5,7 @@ import { withPhotos, searchCandidates, searchKeyword, curationResult, type Credi
 import { BackdropCurator } from "./BackdropCurator";
 import { photoQueries } from "@/lib/keywords";
 import { analyzeSong } from "@/ai/openrouter";
+import { analyzeSongHouse, houseKeyLive, HOUSE_ANNOUNCEMENT, HOUSE_MODEL_LABEL } from "@/ai/houseKey";
 import { analyzeSongOllama } from "@/ai/local";
 import { applyAnalysis, generateArtOpenRouter } from "@/ai/enrich";
 import { generateArtComfy } from "@/comfy/comfyui";
@@ -20,11 +21,15 @@ export function ArtStep({ track, duration, onDone }: {
 }) {
   const [working, setWorking] = useState<Track>(track);
   const [vibe, setVibe] = useState(track.mood || "");
-  const [engine, setEngine] = useState<Engine>("off");
+  // OpenRouter is the default engine while the house key is live — cloud AI
+  // direction works with zero setup, no key, no sign-in.
+  const [engine, setEngine] = useState<Engine>("openrouter");
+  const [houseLive, setHouseLive] = useState<boolean | null>(null);
+  useEffect(() => { houseKeyLive().then(setHouseLive); }, []);
 
   // provider settings (persisted)
   const [orKey, setOrKey] = useState(() => ls("kinetica-openrouter-key"));
-  const [orModel, setOrModel] = useState(() => ls("kinetica-or-model", "openai/gpt-4o-mini"));
+  const [orModel, setOrModel] = useState(() => ls("kinetica-or-model", "tencent/hy3:free"));
   const [orImgModel, setOrImgModel] = useState(() => ls("kinetica-img-model", "google/gemini-2.5-flash-image-preview"));
   const [ollamaHost, setOllamaHost] = useState(() => ls("kinetica-ollama-host", "http://localhost:11434"));
   const [ollamaModel, setOllamaModel] = useState(() => ls("kinetica-ollama-model", "qwen2.5:14b"));
@@ -47,10 +52,14 @@ export function ArtStep({ track, duration, onDone }: {
     try {
       let planet;
       if (engine === "openrouter") {
-        if (!orKey.trim()) throw new Error("Connect with OpenRouter first.");
-        localStorage.setItem("kinetica-openrouter-key", orKey.trim());
-        localStorage.setItem("kinetica-or-model", orModel.trim());
-        planet = await analyzeSong({ lyrics: working.lyrics || "", title: working.title, duration, model: orModel.trim(), key: orKey.trim() });
+        if (orKey.trim()) {
+          localStorage.setItem("kinetica-openrouter-key", orKey.trim());
+          localStorage.setItem("kinetica-or-model", orModel.trim());
+          planet = await analyzeSong({ lyrics: working.lyrics || "", title: working.title, duration, model: orModel.trim(), key: orKey.trim() });
+        } else {
+          // no key connected → the limited-time house key (proxied, free models)
+          planet = await analyzeSongHouse({ lyrics: working.lyrics || "", title: working.title, duration });
+        }
       } else {
         localStorage.setItem("kinetica-ollama-host", ollamaHost.trim());
         localStorage.setItem("kinetica-ollama-model", ollamaModel.trim());
@@ -166,15 +175,27 @@ export function ArtStep({ track, duration, onDone }: {
                 ✓ Connected to OpenRouter
                 <button onClick={() => { disconnectOpenRouter(); setOrKey(""); }} className="text-white/50 underline">disconnect</button>
               </div>
+            ) : houseLive !== false ? (
+              <div className="rounded-lg border border-amber-300/30 bg-amber-300/5 p-3">
+                <p className="font-mono text-[10.5px] leading-relaxed text-amber-200">{HOUSE_ANNOUNCEMENT}</p>
+                <p className="mt-1.5 font-mono text-[10px] text-white/45">
+                  House model: <b className="text-white/70">{HOUSE_MODEL_LABEL}</b> · your lyrics go to the proxy + OpenRouter, nothing else.
+                </p>
+              </div>
             ) : (
               <button onClick={() => startConnect()} className="rounded-full bg-[var(--theme-secondary)] px-5 py-2 font-display text-sm font-bold text-black">🔗 Connect with OpenRouter</button>
             )}
-            <input value={orModel} onChange={(e) => setOrModel(e.target.value)} placeholder="text model, e.g. openai/gpt-4o-mini" className={field} />
+            {orConnected && (
+              <input value={orModel} onChange={(e) => setOrModel(e.target.value)} placeholder="text model, e.g. tencent/hy3:free" className={field} />
+            )}
+            {!orConnected && houseLive !== false && (
+              <button onClick={() => startConnect()} className="font-mono text-[10px] text-white/50 underline">…or connect your own OpenRouter key (any model, AI images)</button>
+            )}
             {isLocal && !orConnected && (
               <input value={orKey} onChange={(e) => setOrKey(e.target.value)} type="password" placeholder="…or paste a key (local only)" className={field} />
             )}
             <p className="font-mono text-[10px] leading-relaxed text-white/45">
-              You approve on <b>openrouter.ai</b> — Kinetica never sees your login, and the key it issues is stored only in this browser.{" "}
+              Connecting? You approve on <b>openrouter.ai</b> — Kinetica never sees your login, and the key it issues is stored only in this browser.{" "}
               Want zero cloud exposure? Use the <a href={RUN_LOCALLY_URL} target="_blank" rel="noreferrer" className="text-[var(--theme-secondary)] underline">desktop app</a> with a local model.
             </p>
           </div>
@@ -202,7 +223,12 @@ export function ArtStep({ track, duration, onDone }: {
       <div className="rounded-xl border border-white/10 p-4">
         <p className="font-mono text-[11px] uppercase tracking-wider text-[var(--theme-primary)]">🖼 Backdrops</p>
 
-        {engine !== "off" && (
+        {engine === "openrouter" && !orConnected && (
+          <p className="mt-3 font-mono text-[10px] leading-relaxed text-white/40">
+            AI-generated backdrops need your own OpenRouter key (image models aren&apos;t free) — the house key covers song analysis only.
+          </p>
+        )}
+        {(engine === "local" || (engine === "openrouter" && orConnected)) && (
           <label className="mt-3 flex items-start gap-2 text-white/70">
             <input type="checkbox" checked={useAiArt} onChange={(e) => setUseAiArt(e.target.checked)} className="mt-0.5" />
             <span className="font-mono text-[10px] leading-relaxed">

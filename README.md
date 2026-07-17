@@ -18,6 +18,14 @@ separated stems.
 All three are the same app. Everything runs on **your** device — see
 [Privacy & trust](#privacy--trust).
 
+> ### 🎁 Limited-time: AI direction on the house
+> For a while, I'm lending **my own OpenRouter key** to the hosted site for
+> testing: cloud AI song analysis works with **no key and no sign-in**, using
+> free models (**Tencent HY3**, falling back to **NVIDIA Nemotron**). It's
+> proxied through x1c7.com — the key never touches your browser, only the
+> song's title + lyrics are sent, and fair-use rate limits apply. Connect your
+> own key any time for any model + AI image backdrops.
+
 ---
 
 ## The three levels
